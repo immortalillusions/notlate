@@ -22,6 +22,7 @@ export default async function DashboardPage() {
     .single<User>()
 
   if (!user) redirect('/login')
+  if (!user.onboarding_complete) redirect('/onboarding')
 
   // Fetch Google Calendar events
   let events: Awaited<ReturnType<typeof listUpcomingEventsWithLocation>> = []

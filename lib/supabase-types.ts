@@ -36,6 +36,7 @@ export interface EventOverride {
   last_gemini_description: string | null
   travel_block_gcal_id: string | null
   last_event_start: string | null
+  directions_error: string | null
   updated_at: string
 }
 
@@ -61,6 +62,10 @@ export interface RouteStep {
   type: 'transit' | 'walk' | 'drive'
   description: string
   durationSeconds: number
+  // Transit-only fields
+  departureStop?: string
+  arrivalStop?: string
+  numStops?: number
 }
 
 export interface WeatherInfo {

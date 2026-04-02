@@ -10,7 +10,6 @@ const schema = z.object({
   departure_location: z.string().optional(),
   travel_mode: z.enum(['driving', 'transit', 'walking']).optional(),
   buffer_minutes: z.coerce.number().int().min(0).max(120).optional(),
-  reminder_minutes: z.coerce.number().int().min(0).max(240).optional(),
 })
 
 export type OverrideState = { error?: string; success?: boolean } | null
@@ -27,7 +26,6 @@ export async function saveOverride(
     departure_location: formData.get('departure_location') || undefined,
     travel_mode: formData.get('travel_mode') || undefined,
     buffer_minutes: formData.get('buffer_minutes') || undefined,
-    reminder_minutes: formData.get('reminder_minutes') || undefined,
   })
 
   if (!parsed.success) return { error: parsed.error.issues[0].message }

@@ -7,10 +7,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await auth()
   if (!session) redirect('/login')
 
-  // @ts-expect-error — extended session field
-  const onboardingComplete = session.user?.onboardingComplete
-  if (!onboardingComplete) redirect('/onboarding')
-
   return (
     <div className="flex flex-col min-h-screen">
       <header className="sticky top-0 z-10 bg-white border-b border-zinc-200">

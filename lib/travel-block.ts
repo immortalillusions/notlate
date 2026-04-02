@@ -28,10 +28,16 @@ export function buildTravelBlockDescription(
   const travelMinutes = Math.round(route.durationSeconds / 60)
   const leaveBy = formatTime(route.departureTime)
 
+  const stepEmoji = { transit: '🚌', walk: '🚶', drive: '🚗' }
+  const stepLines = route.steps.map(
+    (s) => `  ${stepEmoji[s.type]} ${s.description}`
+  )
+
   const lines: string[] = [
-    `Route: ${route.routeSummary}`,
-    `Travel time: ${travelMinutes} min`,
-    `Leave by: ${leaveBy}`,
+    `Travel time: ${travelMinutes} min  |  Leave by: ${leaveBy}`,
+    '',
+    'Route:',
+    ...stepLines,
   ]
 
   if (weather) {

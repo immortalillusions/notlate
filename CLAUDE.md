@@ -8,181 +8,223 @@ A web app that automatically adds travel time blocks to Google Calendar events t
 
 ---
 
-## Tech Stack (TBD)
+## Tech Stack
 
-- **Frontend:** React (or Next.js)
-- **Backend:** Node.js / Next.js API routes
-- **Database:** SQL (e.g. PostgreSQL via Supabase or PlanetScale)
+- **Frontend/Backend:** Next.js 16 App Router (TypeScript, Tailwind v4)
+- **Auth:** Auth.js v5 (`next-auth@beta`) — Google OAuth with `calendar.readonly` + `calendar.events` scopes
+- **Database:** Supabase (PostgreSQL)
 - **Hosting:** Vercel
-- **Scheduler:** Vercel Cron Jobs
+- **Scheduler:** Vercel Cron Jobs (`vercel.json`)
 
 ---
 
 ## APIs Used
 
 ### Google OAuth 2.0
-- User authentication and authorization
-- Scopes needed: `calendar.readonly`, `calendar.events`
+- Scopes: `calendar.readonly`, `calendar.events`
+- `access_type: 'offline'`, `prompt: 'consent'` to force refresh token on first login
 
 ### Google Calendar API
-- Read upcoming events (filter for events with a location)
+- Read upcoming events (filter for `event.location != null`)
 - Create, update, delete travel block events
 - Register and renew webhook push notifications (watch channels)
+- **Webhook requires a public HTTPS URL** — won't fire on `localhost`. Works automatically on Vercel.
 
-### Google Maps Directions API *(Legacy — keeping for now)*
-- Called when user clicks "Travel Update / Change Route" in the side panel
-- **1 API call per button click** — only for the travel mode selected in the dropdown
-- Parameters passed: `origin`, `destination`, `arrival_time` (= event start − buffer), `mode` (driving | transit | walking), `alternatives=true`
-- Returns all alternative routes for that mode: duration, steps (including transit lines/bus numbers), departure time
-- To compare a different mode, user changes the dropdown and clicks the button again (1 call per click)
-- Also called during auto-creation (background) using the user's default travel mode
-- **Note:** Requires a Google Cloud billing account. Set a daily quota cap (e.g. 50 req/day) and a $1/month budget alert in Google Cloud Console to prevent accidental charges.
+### Google Maps Directions API *(Legacy)*
+- Called when user clicks "Get routes" in the side panel — **1 API call per click**
+- Also called during auto-creation (background) and manual Refresh
+- `alternatives=true` — returns all route options for the selected mode
+- If `ZERO_RESULTS` or `NOT_FOUND`: throws `DirectionsNoRouteError`, no travel block is created, error stored in DB and shown on dashboard card
+- Set a daily quota cap (e.g. 50 req/day) + $1/month budget alert in Google Cloud Console
 
-### Open-Meteo API *(Free, no key required)*
-- Called when a travel block is created or refreshed
-- Parameters: latitude/longitude of destination, date/time of event
-- Returns: precipitation (rain/snow), feels-like temp, actual temp
-- Included in travel block event description
+### Open-Meteo API *(Free, no key)*
+- Called on travel block create/refresh
+- Lat/lng taken from the Directions API `end_location` — no extra geocoding call needed
+- Returns: precipitation, feels-like temp, actual temp for the event hour
 
 ### Gemini API
-- Called to estimate preparation/reminder time based on event title + description
-- Only called if: (a) user chose "AI/predictive" reminder mode, AND (b) event title or description has changed since last call
-- Uses answers from onboarding questionnaire as context (stored in SQL)
+- Called when user clicks "Update reminder on calendar" with AI mode selected
+- Also called in background (`processEvent`) if event title/description has changed since last call
+- Explicit user button always calls Gemini fresh (no change-detection cache) — avoids stale results after onboarding answers are updated
+- Background auto-creation uses change detection to avoid unnecessary API calls
+- If Gemini fails or returns non-integer, returns `-1` sentinel and caller falls back to `fixed_reminder_minutes`
 
 ---
 
 ## One-Time Setup Flow
 
-1. User logs in via Google OAuth
-2. User sets defaults (saved to SQL):
-   - Default departure location
+1. User logs in via Google OAuth → upserted into `users` table
+2. Redirected to `/onboarding` if `onboarding_complete = false`
+3. Onboarding collects:
+   - Default departure address
    - Default travel mode (driving / transit / walking)
-   - Default buffer time (e.g. 10 min before arrival)
-   - Default reminder mode:
-     - **Fixed:** X minutes before the travel block starts
-     - **AI/Predictive:** Gemini estimates prep time based on event type
-       - If chosen: user completes onboarding questionnaire
-         - "How long does it take you to get ready for: a meeting / normal hangout / date / rock climbing / exercise / running / food?"
-         - Answers stored in SQL and used as Gemini context
+   - Default buffer time
+   - Reminder mode: **Fixed** (X min) or **AI/Predictive**
+   - If AI: preparation time questionnaire per activity type (stored in `onboarding_answers` JSON)
+4. On submit: saves to DB, registers Google Calendar webhook, redirects to `/dashboard`
 
 ---
 
-## Auto-Creation Flow (Background, No User Action Required)
+## Auto-Creation Flow (Background)
 
 ### Webhook Setup
-- On login, app registers a Google Calendar push notification (webhook) via the Calendar API
-- **Webhooks expire after ~7 days** if no calendar activity occurs
-- Vercel Cron Job runs every 6 days to renew the webhook proactively
+- Registered on onboarding completion via `POST /calendars/primary/events/watch`
+- Webhook TTL ≈ 7 days — Vercel Cron renews every 6 days (`vercel.json`)
+- On `localhost`: Google cannot POST to localhost, so webhooks never fire in dev
 
-### On New Event Added (with a location)
-1. Webhook fires → backend receives notification
-2. Fetch event details (title, description, location, start time)
-3. Call Directions API with default departure location, arrive by = event start − default buffer
-4. Call Open-Meteo for weather at destination + event time
-5. If reminder mode = AI: call Gemini with event title/description + onboarding answers
-6. Create a new travel block event in Google Calendar:
-   - Title: e.g. "🚗 Leave by 2:27 PM — Dentist"
-   - Start: calculated departure time
-   - End: event start time
-   - Description includes:
-     - Route summary (e.g. "72 → 2 → walk 5 min" for transit)
-     - Weather: precipitation, feels-like temp, actual temp
-   - Reminder set based on reminder mode (fixed or AI-estimated)
-7. Save event override record to SQL (with defaults used, linked to Google Calendar event ID)
+### On New/Updated Event (via webhook or manual Refresh)
+`lib/process-event.ts` handles both paths:
 
-### On Event Moved or Time Changed
-1. Webhook fires → backend detects time/location change
-2. Recalculate travel time using saved params (from SQL override or defaults)
-3. Update weather for new event time
-4. Update travel block in Google Calendar
-5. **Reminder time:** NOT recalculated automatically on event move — only recalculated if user clicks Refresh in the app
-   - A note in the travel block description: "⚠️ Reminder time not updated — open app to refresh"
+1. Fetch directions using departure + mode + buffer (override or user defaults)
+2. If `DirectionsNoRouteError`: store error in `event_overrides.directions_error`, return without touching GCal
+3. Fetch weather (Open-Meteo) using lat/lng from directions response
+4. If `reminder_mode = ai` AND title/description changed: call Gemini
+5. Create or update travel block in Google Calendar
+6. Upsert `event_overrides` — clears `directions_error` on success
 
 ### On Event Deleted
-- Automatically delete the associated travel block from Google Calendar
+- Delete associated travel block from Google Calendar
+- Remove `event_overrides` row
+
+### On Event Moved
+- Update travel block start/end times
+- Do NOT update reminder — append `⚠️ Reminder time not updated — open app to refresh` to description
 
 ---
 
-## Web App (Manual Control Dashboard)
-
-### Main View
-- Lists all upcoming Google Calendar events that have a location
-- Each event card shows:
-  - Event title, date/time, location
-  - Current travel block summary (leave by time, route, travel mode)
-  - "Refresh" button
-
-### Refresh Button (per event)
-- Re-calls Directions API using saved params to get updated traffic/transit times
-- Updates weather in travel block description
-- Re-estimates reminder time via Gemini **only if** event title/description has changed since last Gemini call AND reminder mode = AI
-- Updates travel block in Google Calendar
-
-### Event Side Panel (click an event to open)
-Editable fields:
-- **Departure location** — pre-filled with default or saved override
-- **Buffer time** — pre-filled with default or saved override
-- **Travel mode** — dropdown (driving / transit / walking), pre-filled with default or saved override
-- **Reminder / preparation time** — pre-filled with default or saved override
-
-#### "Travel Update / Change Route" Button
-- Label/description: *"Update travel info or choose a different route"*
-- User sets travel mode in the dropdown **before** clicking — only 1 Directions API call is made for that specific mode, with `alternatives=true`
-- Parameters passed: `origin`, `destination`, `arrival_time` (= event start − buffer), `mode` (selected mode), `alternatives=true`
-- Displays a route picker panel showing alternatives for the selected mode only:
+## Web App Structure
 
 ```
-🚌 Transit  —  Arrive by: 2:50 PM  (3:00 PM event − 10 min buffer)
+app/
+  page.tsx                        → redirects to /dashboard or /login
+  (auth)/login/page.tsx           → Google sign-in button
+  (app)/
+    layout.tsx                    → auth check (redirects to /login if no session)
+    dashboard/page.tsx            → Server Component, lists events + overrides
+    settings/page.tsx             → edit defaults
+  onboarding/page.tsx             → first-run setup (outside (app) group to avoid redirect loop)
+  api/
+    auth/[...nextauth]/route.ts   → Auth.js handler
+    webhook/calendar/route.ts     → Google Calendar push notifications
+    directions/route.ts           → server proxy for Directions API
+    events/[eventId]/
+      refresh/route.ts            → manual refresh (calls processEvent)
+      reminder/route.ts           → update reminder on GCal travel block
+    cron/renew-webhooks/route.ts  → called by Vercel Cron (requires Authorization: Bearer <CRON_SECRET>)
+  _components/
+    EventCard.tsx                 → shows event + travel block summary + directions_error if set
+    EventSidePanel.tsx            → override form + AI/Fixed reminder toggle + route picker
+    RoutePicker.tsx               → expandable route cards → "Choose this route" button
+    OnboardingForm.tsx            → multi-step onboarding
+    SettingsForm.tsx              → settings with AI questionnaire shown when AI mode selected
+    SessionProvider.tsx           → wraps next-auth SessionProvider
 
-  Route 1 — 45 min → Leave by 2:05 PM — 72 → 2 → walk 5 min
-  Route 2 — 52 min → Leave by 1:58 PM — 27 → walk 8 min
+lib/
+  auth.ts                         → Auth.js v5 config
+  supabase.ts                     → lazy-init Supabase proxy (avoids build-time errors)
+  supabase-types.ts               → TypeScript interfaces
+  google-token.ts                 → access token refresh
+  google-calendar.ts              → Calendar API wrappers
+  directions.ts                   → Directions API + DirectionsNoRouteError class
+  weather.ts                      → Open-Meteo
+  gemini.ts                       → Gemini prep time estimation (returns -1 on failure)
+  travel-block.ts                 → title/description builders
+  webhook.ts                      → register + renew watch channels
+  process-event.ts                → shared flow: directions → weather → Gemini → GCal
+
+actions/
+  complete-onboarding.ts
+  save-settings.ts                → also saves onboarding_answers when AI mode selected
+  save-override.ts                → saves departure/travel_mode/buffer to DB only (no GCal)
+  apply-route.ts                  → saves chosen route, creates/updates GCal travel block
 ```
 
-- User selects a route → travel block is updated in Google Calendar with chosen route info
-- Chosen route + params (including travel mode) saved to SQL as override for this event
-- To see routes for a different mode, user changes the dropdown and clicks "Travel Update" again (1 API call per click)
+---
 
-#### "Reminder Update" Button
-- Re-calls Gemini only if event title/description has changed since last call
-- Otherwise uses cached result from SQL
-- Updates reminder on the travel block event in Google Calendar
+## SQL Schema
+
+Run migrations in order via Supabase SQL editor.
+
+### `supabase/migrations/001_init.sql`
+```sql
+users (id, google_id, email, access_token, refresh_token,
+       default_departure, default_travel_mode, default_buffer_minutes,
+       reminder_mode, fixed_reminder_minutes, onboarding_answers jsonb,
+       onboarding_complete, created_at)
+
+event_overrides (id, user_id, gcal_event_id,
+                 departure_location, travel_mode, buffer_minutes,
+                 reminder_minutes, last_gemini_title, last_gemini_description,
+                 travel_block_gcal_id, last_event_start,
+                 updated_at, unique(user_id, gcal_event_id))
+
+watch_channels (id, user_id, channel_id, resource_id, expiration, created_at)
+```
+
+### `supabase/migrations/002_directions_error.sql`
+```sql
+alter table event_overrides add column if not exists directions_error text;
+```
 
 ---
 
-## SQL Schema (High Level)
+## Event Side Panel Behaviour
 
-### `users`
-| Field | Description |
-|---|---|
-| id | Primary key |
-| google_id | Google OAuth user ID |
-| default_departure | Default departure address |
-| default_travel_mode | driving / transit / walking |
-| default_buffer_minutes | e.g. 10 |
-| reminder_mode | fixed / ai |
-| fixed_reminder_minutes | used if reminder_mode = fixed |
-| onboarding_answers | JSON — answers to prep time questions |
-
-### `event_overrides`
-| Field | Description |
-|---|---|
-| id | Primary key |
-| user_id | FK to users |
-| gcal_event_id | Google Calendar event ID |
-| departure_location | Override or null (use default) |
-| travel_mode | Override or null |
-| buffer_minutes | Override or null |
-| reminder_minutes | Override or null (AI-estimated or user-set) |
-| last_gemini_title | Title used in last Gemini call (for change detection) |
-| last_gemini_description | Description used in last Gemini call |
-| travel_block_gcal_id | Google Calendar ID of the associated travel block event |
+- **Save overrides** — saves departure location, travel mode, buffer to DB only
+- **Reminder section** — independent AI/Fixed toggle per event (defaults to user's global setting)
+  - Fixed: type minutes → "Update reminder on calendar" → updates GCal travel block + DB
+  - AI: "Update reminder on calendar" → always calls Gemini fresh → updates GCal + DB
+- **Travel Update / Change Route** — fetches routes for current mode (1 API call), shows expandable cards → tap to expand → "Choose this route" → updates GCal travel block
 
 ---
 
-## Open Questions / Notes
+## Calendar Event Description Format
 
-- [ ] Reminder time is **not** auto-updated when an event moves — only on manual Refresh. Consider adding a note in travel block description to inform user.
-- [ ] Rate limiting: Gemini is only called if title/description changed — avoids unnecessary API calls
-- [ ] Webhook renewal: Vercel Cron fires every 6 days (webhook TTL is ~7 days)
-- [ ] Google Cloud setup required: billing account + API key for Directions API. Set daily quota cap (e.g. 50 req/day) + $1/month budget alert to avoid charges.
-- [ ] Open-Meteo is completely free, no key or billing needed
+```
+Travel time: 45 min  |  Leave by: 2:05 PM
+
+Route:
+  🚌 Bus 72: board College St → alight Spadina Ave (4 stops)
+  🚶 Walk to destination (5 min)
+
+Weather at destination (3:00 PM):
+🌧️ Precipitation: 1.2mm | 🌡️ 8°C (feels like 5°C)
+
+⚠️ Reminder time not updated — open app to refresh   ← only on auto-moved events
+```
+
+---
+
+## Required Environment Variables
+
+See `.env.local.example` for full list. Key ones:
+
+```
+NEXTAUTH_SECRET          # openssl rand -base64 32
+NEXTAUTH_URL             # http://localhost:3000 in dev
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+NEXT_PUBLIC_SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+GOOGLE_MAPS_API_KEY
+GEMINI_API_KEY
+NEXT_PUBLIC_APP_URL      # your Vercel URL in prod (used for webhook registration)
+CRON_SECRET
+```
+
+---
+
+## Google Cloud Setup (Required)
+
+1. Create a project, enable billing
+2. Enable **Google Calendar API** and **Directions API (Legacy)**
+3. Create OAuth 2.0 credentials
+   - Authorised redirect URI: `http://localhost:3000/api/auth/callback/google` (dev) + your Vercel URL (prod)
+4. Set daily quota cap on Directions API (~50 req/day) + $1/month budget alert
+
+---
+
+## Known Issues / TODO
+
+- [ ] Gemini sometimes returns wrong values — prompt improvement needed
+- [ ] Webhooks don't fire on `localhost` (Google can't reach it). Use ngrok/Cloudflare tunnel or deploy to Vercel to test the automatic flow. Manual Refresh on each event works as a workaround in dev.

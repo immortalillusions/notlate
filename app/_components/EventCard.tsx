@@ -54,7 +54,7 @@ export default function EventCard({ event, override, userDefaults }: Props) {
     })
   }
 
-  const hasTravelBlock = !!override?.travel_block_gcal_id
+  const hasTravelBlock = !!override?.travel_block_gcal_id && !override?.directions_error
 
   return (
     <>
@@ -79,11 +79,16 @@ export default function EventCard({ event, override, userDefaults }: Props) {
             {event.location && (
               <p className="text-xs text-zinc-400 mt-1 truncate">{event.location}</p>
             )}
-            {override?.travel_block_gcal_id && (
+            {override?.travel_block_gcal_id && !override.directions_error && (
               <p className="text-xs text-zinc-500 mt-1.5">
                 🚗{' '}
                 {override.travel_mode ?? userDefaults.default_travel_mode} •{' '}
                 {override.buffer_minutes ?? userDefaults.default_buffer_minutes} min buffer
+              </p>
+            )}
+            {override?.directions_error && (
+              <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mt-1.5">
+                ⚠️ {override.directions_error}
               </p>
             )}
             {refreshError && (

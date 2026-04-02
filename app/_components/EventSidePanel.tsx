@@ -25,7 +25,7 @@ interface Props {
 export default function EventSidePanel({ event, override, userDefaults, onClose }: Props) {
   const router = useRouter()
   const [saveState, saveAction, savePending] = useActionState(saveOverride, null)
-  const [isLoadingRoutes, startRouteFetch] = useTransition()
+
   const [travelMode, setTravelMode] = useState(
     override?.travel_mode ?? userDefaults.default_travel_mode
   )
@@ -35,13 +35,20 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
   const [bufferMinutes, setBufferMinutes] = useState(
     override?.buffer_minutes ?? userDefaults.default_buffer_minutes
   )
+
+  // Reminder section — independent from the save form
+  const [reminderMode, setReminderMode] = useState<'fixed' | 'ai'>(
+    userDefaults.reminder_mode as 'fixed' | 'ai'
+  )
   const [reminderMinutes, setReminderMinutes] = useState(
     override?.reminder_minutes ?? userDefaults.fixed_reminder_minutes
   )
-  const [routes, setRoutes] = useState<RouteAlternative[] | null>(null)
-  const [routeError, setRouteError] = useState<string | null>(null)
   const [isUpdatingReminder, startReminderUpdate] = useTransition()
   const [reminderStatus, setReminderStatus] = useState<string | null>(null)
+
+  const [isLoadingRoutes, startRouteFetch] = useTransition()
+  const [routes, setRoutes] = useState<RouteAlternative[] | null>(null)
+  const [routeError, setRouteError] = useState<string | null>(null)
 
   const eventStart = new Date(event.start.dateTime)
   const arrivalTime = new Date(eventStart.getTime() - bufferMinutes * 60 * 1000)
@@ -80,9 +87,19 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
     setReminderStatus(null)
     startReminderUpdate(async () => {
       try {
-        const res = await fetch(`/api/events/${event.id}/reminder`, { method: 'POST' })
+        const body =
+          reminderMode === 'fixed'
+            ? { mode: 'fixed' as const, minutes: reminderMinutes }
+            : { mode: 'ai' as const }
+
+        const res = await fetch(`/api/events/${event.id}/reminder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error ?? 'Failed')
+        setReminderMinutes(data.reminderMinutes)
         setReminderStatus(`Updated to ${data.reminderMinutes} min`)
         router.refresh()
       } catch (err) {
@@ -131,20 +148,16 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
         </div>
 
         <div className="flex-1 px-5 py-5 space-y-5">
-          {saveState?.error && (
-            <p className="text-sm text-red-600">{saveState.error}</p>
-          )}
-          {saveState?.success && (
-            <p className="text-sm text-green-700">Saved!</p>
-          )}
-
-          {/* Override form */}
-          <form
-            action={saveAction}
-            className="space-y-4"
-            onSubmit={() => router.refresh()}
-          >
+          {/* Travel overrides */}
+          <form action={saveAction} className="space-y-4">
             <input type="hidden" name="gcal_event_id" value={event.id} />
+
+            {saveState?.error && (
+              <p className="text-sm text-red-600">{saveState.error}</p>
+            )}
+            {saveState?.success && (
+              <p className="text-sm text-green-700">Saved!</p>
+            )}
 
             <div className="space-y-1">
               <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
@@ -197,24 +210,6 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
-                Reminder before leaving
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  name="reminder_minutes"
-                  value={reminderMinutes}
-                  onChange={(e) => setReminderMinutes(Number(e.target.value))}
-                  min={0}
-                  max={240}
-                  className="w-20 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
-                />
-                <span className="text-sm text-zinc-500">min</span>
-              </div>
-            </div>
-
             <button
               type="submit"
               disabled={savePending}
@@ -223,6 +218,74 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
               {savePending ? 'Saving…' : 'Save overrides'}
             </button>
           </form>
+
+          <hr className="border-zinc-100" />
+
+          {/* Reminder section */}
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+              Reminder
+            </p>
+
+            {/* AI / Fixed toggle */}
+            <div className="flex rounded-lg border border-zinc-200 overflow-hidden text-sm">
+              <button
+                type="button"
+                onClick={() => setReminderMode('fixed')}
+                className={`flex-1 py-2 transition-colors ${
+                  reminderMode === 'fixed'
+                    ? 'bg-zinc-900 text-white font-medium'
+                    : 'bg-white text-zinc-500 hover:bg-zinc-50'
+                }`}
+              >
+                Fixed
+              </button>
+              <button
+                type="button"
+                onClick={() => setReminderMode('ai')}
+                className={`flex-1 py-2 transition-colors ${
+                  reminderMode === 'ai'
+                    ? 'bg-zinc-900 text-white font-medium'
+                    : 'bg-white text-zinc-500 hover:bg-zinc-50'
+                }`}
+              >
+                AI estimate
+              </button>
+            </div>
+
+            {reminderMode === 'fixed' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={reminderMinutes}
+                  onChange={(e) => setReminderMinutes(Number(e.target.value))}
+                  min={0}
+                  max={240}
+                  className="w-20 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                />
+                <span className="text-sm text-zinc-500">min before leaving</span>
+              </div>
+            )}
+
+            {reminderMode === 'ai' && (
+              <p className="text-xs text-zinc-400">
+                Gemini will estimate based on the event type and your prep times.
+              </p>
+            )}
+
+            <button
+              type="button"
+              disabled={isUpdatingReminder}
+              onClick={handleReminderUpdate}
+              className="w-full rounded-lg border border-zinc-300 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors disabled:opacity-50"
+            >
+              {isUpdatingReminder ? 'Updating…' : 'Update reminder on calendar'}
+            </button>
+
+            {reminderStatus && (
+              <p className="text-sm text-zinc-600">{reminderStatus}</p>
+            )}
+          </div>
 
           <hr className="border-zinc-100" />
 
@@ -245,9 +308,7 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
               {isLoadingRoutes ? 'Fetching routes…' : 'Get routes'}
             </button>
 
-            {routeError && (
-              <p className="text-sm text-red-600">{routeError}</p>
-            )}
+            {routeError && <p className="text-sm text-red-600">{routeError}</p>}
 
             {routes !== null && (
               <RoutePicker
@@ -263,28 +324,6 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
               />
             )}
           </div>
-
-          {userDefaults.reminder_mode === 'ai' && (
-            <>
-              <hr className="border-zinc-100" />
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
-                  AI Reminder Update
-                </p>
-                <button
-                  type="button"
-                  disabled={isUpdatingReminder}
-                  onClick={handleReminderUpdate}
-                  className="w-full rounded-lg border border-zinc-300 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors disabled:opacity-50"
-                >
-                  {isUpdatingReminder ? 'Updating…' : 'Reminder Update'}
-                </button>
-                {reminderStatus && (
-                  <p className="text-sm text-zinc-600">{reminderStatus}</p>
-                )}
-              </div>
-            </>
-          )}
         </div>
       </div>
     </div>

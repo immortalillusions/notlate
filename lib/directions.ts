@@ -1,5 +1,12 @@
 import type { RouteAlternative, RouteStep } from '@/lib/supabase-types'
 
+export class DirectionsNoRouteError extends Error {
+  constructor(message = 'No route found between these locations') {
+    super(message)
+    this.name = 'DirectionsNoRouteError'
+  }
+}
+
 export type TravelMode = 'driving' | 'transit' | 'walking'
 
 interface DirectionsParams {
@@ -31,6 +38,9 @@ export async function fetchDirections(
 
   const data = await res.json()
 
+  if (data.status === 'ZERO_RESULTS' || data.status === 'NOT_FOUND') {
+    throw new DirectionsNoRouteError()
+  }
   if (data.status !== 'OK') {
     throw new Error(`Directions API error: ${data.status} — ${data.error_message ?? ''}`)
   }
@@ -58,6 +68,8 @@ interface GoogleStep {
   transit_details?: {
     line: { short_name?: string; name?: string }
     num_stops?: number
+    departure_stop?: { name: string }
+    arrival_stop?: { name: string }
   }
 }
 
@@ -76,12 +88,18 @@ function parseRoute(route: GoogleRoute, mode: TravelMode): RouteAlternative {
 
   const steps: RouteStep[] = leg.steps.map((step) => {
     if (step.travel_mode === 'TRANSIT' && step.transit_details) {
-      const line =
-        step.transit_details.line.short_name ?? step.transit_details.line.name ?? 'Transit'
+      const td = step.transit_details
+      const line = td.line.short_name ?? td.line.name ?? 'Transit'
+      const numStops = td.num_stops ?? 0
+      const stopLabel = numStops === 1 ? '1 stop' : `${numStops} stops`
+      const description = `${line}: board ${td.departure_stop?.name ?? '?'} → alight ${td.arrival_stop?.name ?? '?'} (${stopLabel})`
       return {
         type: 'transit',
-        description: `${line} (${step.transit_details.num_stops ?? '?'} stops)`,
+        description,
         durationSeconds: step.duration.value,
+        departureStop: td.departure_stop?.name,
+        arrivalStop: td.arrival_stop?.name,
+        numStops: td.num_stops,
       }
     }
     if (step.travel_mode === 'WALKING') {

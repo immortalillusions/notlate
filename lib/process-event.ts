@@ -3,7 +3,7 @@
  * Called by the webhook receiver and the manual Refresh endpoint.
  */
 import { supabase } from '@/lib/supabase'
-import { fetchDirections, type TravelMode } from '@/lib/directions'
+import { fetchDirections, DirectionsNoRouteError, type TravelMode } from '@/lib/directions'
 import { fetchWeather } from '@/lib/weather'
 import { estimatePrepMinutes } from '@/lib/gemini'
 import {
@@ -48,13 +48,31 @@ export async function processEvent(
   // Arrival time = event start minus buffer
   const arrivalTime = new Date(eventStart.getTime() - buffer * 60 * 1000)
 
-  // Fetch directions
-  const routes = await fetchDirections({
-    origin: departure,
-    destination: event.location,
-    arrivalTime,
-    mode,
-  })
+  // Fetch directions — handle "no route" case gracefully
+  let routes: Awaited<ReturnType<typeof fetchDirections>>
+  try {
+    routes = await fetchDirections({
+      origin: departure,
+      destination: event.location,
+      arrivalTime,
+      mode,
+    })
+  } catch (err) {
+    if (err instanceof DirectionsNoRouteError) {
+      // Store error so the dashboard can show it; don't touch any GCal travel block
+      await supabase.from('event_overrides').upsert(
+        {
+          user_id: user.id,
+          gcal_event_id: event.id,
+          directions_error: 'Route too far or not found — no travel block created.',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,gcal_event_id' }
+      )
+      return
+    }
+    throw err
+  }
 
   if (!routes.length) return
   const route = routes[0]
@@ -74,11 +92,12 @@ export async function processEvent(
     const descChanged = (event.description ?? '') !== (override?.last_gemini_description ?? '')
 
     if (!override || titleChanged || descChanged) {
-      reminderMinutes = await estimatePrepMinutes(
+      const aiMinutes = await estimatePrepMinutes(
         event.summary,
         event.description ?? '',
         user.onboarding_answers
       )
+      if (aiMinutes !== -1) reminderMinutes = aiMinutes
     }
   }
 
@@ -96,7 +115,6 @@ export async function processEvent(
       description,
       start: leaveByTime,
       end: eventStart,
-      // Only update reminder if not an auto-move (spec requirement)
       ...(isEventMoved ? {} : { reminderMinutes }),
     })
   } else {
@@ -109,12 +127,13 @@ export async function processEvent(
     })
   }
 
-  // Upsert event_override
+  // Upsert event_override — clear any previous directions_error on success
   const upsertData: Record<string, unknown> = {
     user_id: user.id,
     gcal_event_id: event.id,
     travel_block_gcal_id: travelBlockId,
     last_event_start: eventStart.toISOString(),
+    directions_error: null,
     updated_at: new Date().toISOString(),
   }
 
