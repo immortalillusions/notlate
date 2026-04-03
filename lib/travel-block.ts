@@ -43,9 +43,12 @@ export function buildTravelBlockDescription(
 ): string {
   const travelMinutes = Math.round(route.durationSeconds / 60)
   const leaveBy = formatTime(leaveByTime, timeZone)
+  const arriveDate = new Date(leaveByTime.getTime() + route.durationSeconds * 1000)
+  const arriveAt = formatTime(arriveDate, timeZone)
 
   const lines: string[] = [
-    `Travel time: ${travelMinutes} min  |  Leave by: ${leaveBy}`,
+    `Leave by: ${leaveBy} | Arrive at: ${arriveAt}`,
+    `Travel time: ${travelMinutes} min`,
   ]
 
   if (departure) {
