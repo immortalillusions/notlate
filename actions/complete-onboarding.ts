@@ -5,8 +5,6 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import { getValidAccessToken } from '@/lib/google-token'
-import { registerWebhook } from '@/lib/webhook'
 
 const schema = z.object({
   default_departure: z.string().min(1, 'Departure location is required'),
@@ -71,14 +69,7 @@ export async function completeOnboarding(
 
   if (dbError) return { error: 'Failed to save settings' }
 
-  // Register Google Calendar webhook
-  try {
-    const accessToken = await getValidAccessToken(session.user.id)
-    await registerWebhook(session.user.id, accessToken)
-  } catch (err) {
-    console.error('Failed to register webhook after onboarding:', err)
-    // Non-fatal — user can still use the app
-  }
+  // Webhooks removed: skip registration step.
 
   revalidatePath('/dashboard')
   redirect('/dashboard')
