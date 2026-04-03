@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useEffect } from 'react'
 import { saveSettings } from '@/actions/save-settings'
+import AddressAutocomplete from './AddressAutocomplete'
 import type { User, OnboardingAnswers } from '@/lib/supabase-types'
 
 interface Props {
@@ -28,9 +29,11 @@ const ACTIVITY_LABELS: { key: keyof OnboardingAnswers; label: string }[] = [
 
 export default function SettingsForm({ user }: Props) {
   const [state, action, pending] = useActionState(saveSettings, null)
+  const [departure, setDeparture] = useState(user.default_departure ?? '')
   const [reminderMode, setReminderMode] = useState<'fixed' | 'ai'>(user.reminder_mode)
   // Sync with server-rendered value after a successful save + revalidation
   useEffect(() => { setReminderMode(user.reminder_mode) }, [user.reminder_mode])
+  useEffect(() => { setDeparture(user.default_departure ?? '') }, [user.default_departure])
 
   return (
     <form action={action} className="space-y-6">
@@ -52,11 +55,10 @@ export default function SettingsForm({ user }: Props) {
           <label className="text-sm font-medium text-zinc-700" htmlFor="default_departure">
             Departure location
           </label>
-          <input
-            id="default_departure"
-            type="text"
+          <AddressAutocomplete
             name="default_departure"
-            defaultValue={user.default_departure ?? ''}
+            value={departure}
+            onChange={setDeparture}
             required
             className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
           />

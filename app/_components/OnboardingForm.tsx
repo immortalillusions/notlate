@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { completeOnboarding } from '@/actions/complete-onboarding'
+import AddressAutocomplete from './AddressAutocomplete'
 
 const ACTIVITY_LABELS: Record<string, string> = {
   meeting: 'A work meeting',
@@ -16,6 +17,7 @@ const ACTIVITY_LABELS: Record<string, string> = {
 export default function OnboardingForm() {
   const [state, action, pending] = useActionState(completeOnboarding, null)
   const [step, setStep] = useState(1)
+  const [departure, setDeparture] = useState('')
   const [reminderMode, setReminderMode] = useState<'fixed' | 'ai'>('fixed')
 
   return (
@@ -29,9 +31,10 @@ export default function OnboardingForm() {
       {/* Step 1: Departure */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4">
         <h2 className="font-semibold text-lg">1. Where do you usually leave from?</h2>
-        <input
-          type="text"
+        <AddressAutocomplete
           name="default_departure"
+          value={departure}
+          onChange={setDeparture}
           placeholder="e.g. 123 Main St, New York, NY"
           required
           className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"

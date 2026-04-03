@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveOverride } from '@/actions/save-override'
 import RoutePicker from './RoutePicker'
+import AddressAutocomplete from './AddressAutocomplete'
 import type { GCalEvent } from '@/lib/google-calendar'
 import type { EventOverride, RouteAlternative } from '@/lib/supabase-types'
 
@@ -165,11 +166,10 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
               <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
                 Departure location
               </label>
-              <input
-                type="text"
+              <AddressAutocomplete
                 name="departure_location"
                 value={departure}
-                onChange={(e) => setDeparture(e.target.value)}
+                onChange={setDeparture}
                 placeholder={userDefaults.default_departure ?? 'Enter address'}
                 className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
               />
