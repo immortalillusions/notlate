@@ -5,6 +5,7 @@ import type { CalendarEvent, EventOverride, User } from '@/lib/supabase-types'
 import type { GCalEvent } from '@/lib/google-calendar'
 import EventCard from '@/app/_components/EventCard'
 import DashboardRefresher from '@/app/_components/DashboardRefresher'
+import SyncNowButton from '@/app/_components/SyncNowButton'
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -74,7 +75,8 @@ export default async function DashboardPage() {
 
       {channel && events.length === 0 && (
         <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-12 text-center text-zinc-400 text-sm">
-          No upcoming events with a location found. Add an event with a location in Google Calendar — it will appear here automatically.
+          <p>No upcoming events with a location found. Add an event with a location in Google Calendar — it will appear here automatically.</p>
+          <SyncNowButton />
         </div>
       )}
 

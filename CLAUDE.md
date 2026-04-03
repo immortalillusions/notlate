@@ -107,8 +107,6 @@ The webhook fires frequently (phone syncs, other clients). To avoid unnecessary 
 
 ### On Event Moved
 - Update travel block start/end times
-- Do NOT update reminder — append `⚠️ Reminder time not updated — open app to refresh` to description
-
 ---
 
 ## Dashboard

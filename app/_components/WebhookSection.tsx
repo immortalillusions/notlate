@@ -1,8 +1,7 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useMemo } from 'react'
 import { registerWebhookAction } from '@/actions/register-webhook'
-import { syncCalendarEvents } from '@/actions/sync-events'
 
 interface Props {
   expiration: string | null
@@ -13,14 +12,18 @@ export default function WebhookSection({ expiration }: Props) {
     registerWebhookAction,
     null
   )
-  const [syncState, syncAction, syncPending] = useActionState(syncCalendarEvents, null)
 
-  const daysRemaining = expiration
-    ? (new Date(expiration).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    : null
+  // expiration is a server-provided ISO string or null.
+  // Avoid calling Date.now() during render deterministically — compute
+  // a client-side memo when running in the browser.
+  const daysRemaining = useMemo(() => {
+    if (!expiration) return null
+    const diff = new Date(expiration).getTime() - Date.now()
+    return Math.max(0, diff / (1000 * 60 * 60 * 24))
+  }, [expiration])
 
   const isActive = daysRemaining !== null && daysRemaining > 0
-  const canReRegister = !isActive || daysRemaining! <= 3
+  const canReRegister = !isActive || (daysRemaining !== null && daysRemaining <= 3)
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
@@ -41,7 +44,7 @@ export default function WebhookSection({ expiration }: Props) {
         )}
       </div>
 
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex flex-wrap">
         <form action={registerAction}>
           <button
             type="submit"
@@ -52,28 +55,19 @@ export default function WebhookSection({ expiration }: Props) {
           </button>
         </form>
 
-        <form action={syncAction}>
-          <button
-            type="submit"
-            disabled={syncPending}
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 disabled:opacity-40"
-          >
-            {syncPending ? 'Syncing…' : 'Sync now'}
-          </button>
-        </form>
+        {/* Sync now moved to dashboard when no events present */}
       </div>
+
+          <p className="text-xs text-zinc-500 mb-0.5">
+          Vercel cron will auto renew webhook every 6 days but you may also do it manually.
+        </p>
+      
 
       {registerState?.error && (
         <p className="text-xs text-red-600">{registerState.error}</p>
       )}
       {registerState?.success && (
         <p className="text-xs text-green-700">Webhook registered successfully.</p>
-      )}
-      {syncState?.error && (
-        <p className="text-xs text-red-600">{syncState.error}</p>
-      )}
-      {syncState?.success && (
-        <p className="text-xs text-green-700">Events synced.</p>
       )}
     </div>
   )
