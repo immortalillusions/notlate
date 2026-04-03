@@ -1,12 +1,10 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getValidAccessToken } from '@/lib/google-token'
-import { listUpcomingEventsWithLocation } from '@/lib/google-calendar'
-import type { EventOverride, User } from '@/lib/supabase-types'
+import type { CalendarEvent, EventOverride, User } from '@/lib/supabase-types'
+import type { GCalEvent } from '@/lib/google-calendar'
 import EventCard from '@/app/_components/EventCard'
-
-export const dynamic = 'force-dynamic'
+import DashboardRefresher from '@/app/_components/DashboardRefresher'
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -14,7 +12,6 @@ export default async function DashboardPage() {
 
   const userId = session.user.id
 
-  // Fetch user defaults
   const { data: user } = await supabase
     .from('users')
     .select('*')
@@ -24,18 +21,26 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
   if (!user.onboarding_complete) redirect('/onboarding')
 
-  // Fetch Google Calendar events
-  let events: Awaited<ReturnType<typeof listUpcomingEventsWithLocation>> = []
-  let calendarError: string | null = null
+  // Read from the calendar_events cache populated by the webhook.
+  // The webhook calls revalidatePath('/dashboard') after processing changes,
+  // so this page is re-rendered automatically when events change.
+  const now = new Date().toISOString()
+  const { data: cachedEvents } = await supabase
+    .from('calendar_events')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('start_at', now)
+    .order('start_at', { ascending: true })
 
-  try {
-    const accessToken = await getValidAccessToken(userId)
-    events = await listUpcomingEventsWithLocation(accessToken)
-  } catch (err) {
-    calendarError = err instanceof Error ? err.message : 'Failed to load calendar events'
-  }
+  const events: GCalEvent[] = (cachedEvents ?? []).map((e: CalendarEvent) => ({
+    id: e.gcal_event_id,
+    summary: e.summary,
+    location: e.location ?? undefined,
+    description: e.description ?? undefined,
+    start: { dateTime: e.start_at },
+    end: { dateTime: e.end_at },
+  }))
 
-  // Fetch all event overrides for this user in one query
   const { data: overrides } = await supabase
     .from('event_overrides')
     .select('*')
@@ -45,26 +50,31 @@ export default async function DashboardPage() {
     (overrides ?? []).map((o) => [o.gcal_event_id, o])
   )
 
+  const { data: channel } = await supabase
+    .from('watch_channels')
+    .select('channel_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Upcoming events</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            Events with a location — travel blocks managed automatically
-          </p>
-        </div>
+      <DashboardRefresher />
+      <div>
+        <h1 className="text-2xl font-bold">Upcoming events</h1>
+        <p className="text-sm text-zinc-500 mt-0.5">
+          Events with a location — travel blocks managed automatically
+        </p>
       </div>
 
-      {calendarError && (
+      {!channel && (
         <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-          {calendarError}
+          No webhook registered — go to Settings to register one so events are tracked automatically.
         </div>
       )}
 
-      {!calendarError && events.length === 0 && (
+      {channel && events.length === 0 && (
         <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-12 text-center text-zinc-400 text-sm">
-          No upcoming events with a location found in the next 30 days.
+          No upcoming events with a location found. Add an event with a location in Google Calendar — it will appear here automatically.
         </div>
       )}
 

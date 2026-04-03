@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { supabase } from '@/lib/supabase'
 import { getValidAccessToken } from '@/lib/google-token'
 import { listUpcomingEventsWithLocation, deleteCalendarEvent } from '@/lib/google-calendar'
@@ -113,6 +114,7 @@ export async function POST(request: NextRequest) {
     // This is the key guard: we only call processEvent (which calls the
     // Directions API) when the destination or departure time actually changed.
     // Title/description changes alone do NOT trigger a Directions API call.
+    let anythingChanged = staleIds.length > 0
     for (const event of events) {
       const prev = prevMap.get(event.id)
 
@@ -124,6 +126,7 @@ export async function POST(request: NextRequest) {
 
       if (!locationChanged && !startChanged) continue // nothing that affects travel changed
 
+      anythingChanged = true
       const existing = overrideMap.get(event.id)
       const isEventMoved =
         !!existing?.last_event_start &&
@@ -134,6 +137,8 @@ export async function POST(request: NextRequest) {
 
       await processEvent(event, user, accessToken, isEventMoved)
     }
+
+    if (anythingChanged) revalidatePath('/dashboard')
   } catch (err) {
     console.error('Webhook processing error:', err)
   }
