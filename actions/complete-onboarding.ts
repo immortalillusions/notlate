@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import { registerWebhook } from '@/lib/webhook'
 
 const schema = z.object({
   default_departure: z.string().min(1, 'Departure location is required'),
@@ -39,7 +40,14 @@ export async function completeOnboarding(
     default_travel_mode: formData.get('default_travel_mode'),
     default_buffer_minutes: formData.get('default_buffer_minutes'),
     reminder_mode: formData.get('reminder_mode'),
-    fixed_reminder_minutes: formData.get('fixed_reminder_minutes'),
+    // If AI mode chosen and no sensible fixed reminder provided, default to 15 minutes
+    fixed_reminder_minutes: (() => {
+      const provided = formData.get('fixed_reminder_minutes')
+      const mode = formData.get('reminder_mode')
+      const num = provided ? Number(String(provided)) : NaN
+      if (mode === 'ai' && (Number.isNaN(num) || num <= 1)) return '15'
+      return provided
+    })(),
     onboarding_answers:
       formData.get('reminder_mode') === 'ai'
         ? {
@@ -69,7 +77,12 @@ export async function completeOnboarding(
 
   if (dbError) return { error: 'Failed to save settings' }
 
-  // Webhooks removed: skip registration step.
+  // Register webhook — best-effort, don't block onboarding if it fails
+  try {
+    await registerWebhook(session.user.id)
+  } catch (err) {
+    console.warn('Webhook registration failed during onboarding:', err)
+  }
 
   revalidatePath('/dashboard')
   redirect('/dashboard')

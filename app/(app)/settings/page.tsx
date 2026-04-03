@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SettingsForm from '@/app/_components/SettingsForm'
+import WebhookSection from '@/app/_components/WebhookSection'
 import type { User } from '@/lib/supabase-types'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,12 @@ export default async function SettingsPage() {
 
   if (!user) redirect('/login')
 
+  const { data: channel } = await supabase
+    .from('watch_channels')
+    .select('expiration')
+    .eq('user_id', session.user.id)
+    .maybeSingle()
+
   return (
     <div className="max-w-xl space-y-6">
       <div>
@@ -39,6 +46,7 @@ export default async function SettingsPage() {
         </p>
       </div>
       <SettingsForm user={user} />
+      <WebhookSection expiration={channel?.expiration ?? null} />
     </div>
   )
 }

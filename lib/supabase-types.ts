@@ -46,7 +46,19 @@ export interface WatchChannel {
   channel_id: string
   resource_id: string
   expiration: string
+  last_synced_at: string | null
   created_at: string
+}
+
+export interface CalendarEvent {
+  user_id: string
+  gcal_event_id: string
+  summary: string
+  location: string | null
+  description: string | null
+  start_at: string
+  end_at: string
+  updated_at: string
 }
 
 export interface RouteAlternative {

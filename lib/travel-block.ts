@@ -1,15 +1,16 @@
 import type { RouteAlternative, WeatherInfo } from '@/lib/supabase-types'
 
-export function formatTime(date: Date): string {
+export function formatTime(date: Date, timeZone?: string): string {
   return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+    ...(timeZone ? { timeZone } : {}),
   })
 }
 
-export function buildTravelBlockTitle(leaveByTime: Date, eventName: string): string {
-  return `🚗 Leave by ${formatTime(leaveByTime)} — ${eventName}`
+export function buildTravelBlockTitle(leaveByTime: Date, eventName: string, timeZone?: string): string {
+  return `🚗 Leave by ${formatTime(leaveByTime, timeZone)} — ${eventName}`
 }
 
 export function computeLeaveByTime(
@@ -23,10 +24,11 @@ export function computeLeaveByTime(
 export function buildTravelBlockDescription(
   route: RouteAlternative,
   weather: WeatherInfo | null,
-  isEventMoved = false
+  isEventMoved = false,
+  timeZone?: string
 ): string {
   const travelMinutes = Math.round(route.durationSeconds / 60)
-  const leaveBy = formatTime(route.departureTime)
+  const leaveBy = formatTime(route.departureTime, timeZone)
 
   const stepEmoji = { transit: '🚌', walk: '🚶', drive: '🚗' }
   const stepLines = route.steps.map(
@@ -43,7 +45,7 @@ export function buildTravelBlockDescription(
   if (weather) {
     const precipEmoji = weather.precipMm > 0 ? '🌧️' : '☀️'
     lines.push('')
-    lines.push(`Weather at destination (${formatTime(route.arrivalTime)}):`)
+    lines.push(`Weather at destination (${formatTime(route.arrivalTime, timeZone)}):`)
     lines.push(
       `${precipEmoji} Precipitation: ${weather.precipMm}mm | 🌡️ ${weather.tempC}°C (feels like ${weather.feelsLikeC}°C)`
     )

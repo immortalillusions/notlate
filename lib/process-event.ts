@@ -23,10 +23,11 @@ export async function processEvent(
   user: User,
   accessToken: string,
   isEventMoved = false
-): Promise<void> {
+): Promise<{ created?: boolean; updated?: boolean; travelBlockId?: string } | void> {
   if (!event.location) return
 
   const eventStart = new Date(event.start.dateTime)
+  const eventTimeZone = event.start.timeZone ?? event.start.timeZone ?? undefined
 
   // Load existing override (if any)
   const { data: override } = await supabase
@@ -102,8 +103,8 @@ export async function processEvent(
   }
 
   const leaveByTime = computeLeaveByTime(eventStart, route.durationSeconds, buffer)
-  const title = buildTravelBlockTitle(leaveByTime, event.summary)
-  const description = buildTravelBlockDescription(route, weather, isEventMoved)
+  const title = buildTravelBlockTitle(leaveByTime, event.summary, eventTimeZone)
+  const description = buildTravelBlockDescription(route, weather, isEventMoved, eventTimeZone)
 
   const existingBlockId = override?.travel_block_gcal_id
 
@@ -116,7 +117,10 @@ export async function processEvent(
       start: leaveByTime,
       end: eventStart,
       ...(isEventMoved ? {} : { reminderMinutes }),
+      timeZone: eventTimeZone,
     })
+    console.log(`Updated travel block ${existingBlockId} for event ${event.id}`)
+    // Upsert event_override later as usual
   } else {
     travelBlockId = await createCalendarEvent(accessToken, {
       summary: title,
@@ -124,7 +128,9 @@ export async function processEvent(
       start: leaveByTime,
       end: eventStart,
       reminderMinutes,
+      timeZone: eventTimeZone,
     })
+    console.log(`Created travel block ${travelBlockId} for event ${event.id}`)
   }
 
   // Upsert event_override — clear any previous directions_error on success
@@ -146,4 +152,7 @@ export async function processEvent(
   await supabase
     .from('event_overrides')
     .upsert(upsertData, { onConflict: 'user_id,gcal_event_id' })
+  // Return a small result for callers to know what happened
+  if (existingBlockId) return { updated: true, travelBlockId }
+  return { created: true, travelBlockId }
 }

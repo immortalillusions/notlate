@@ -14,6 +14,7 @@ interface CreateEventParams {
   start: Date
   end: Date
   reminderMinutes: number
+  timeZone?: string
 }
 
 async function calendarFetch(
@@ -64,11 +65,18 @@ export async function createCalendarEvent(
   accessToken: string,
   params: CreateEventParams
 ): Promise<string> {
+  const startObj: Record<string, unknown> = { dateTime: params.start.toISOString() }
+  const endObj: Record<string, unknown> = { dateTime: params.end.toISOString() }
+  if (params.timeZone) {
+    startObj.timeZone = params.timeZone
+    endObj.timeZone = params.timeZone
+  }
+
   const body = {
     summary: params.summary,
     description: params.description,
-    start: { dateTime: params.start.toISOString() },
-    end: { dateTime: params.end.toISOString() },
+    start: startObj,
+    end: endObj,
     reminders: {
       useDefault: false,
       overrides: [{ method: 'popup', minutes: params.reminderMinutes }],
@@ -94,8 +102,16 @@ export async function updateCalendarEvent(
 
   if (params.summary) body.summary = params.summary
   if (params.description !== undefined) body.description = params.description
-  if (params.start) body.start = { dateTime: params.start.toISOString() }
-  if (params.end) body.end = { dateTime: params.end.toISOString() }
+  if (params.start) {
+    const startObj: Record<string, unknown> = { dateTime: params.start.toISOString() }
+    if (params.timeZone) startObj.timeZone = params.timeZone
+    body.start = startObj
+  }
+  if (params.end) {
+    const endObj: Record<string, unknown> = { dateTime: params.end.toISOString() }
+    if (params.timeZone) endObj.timeZone = params.timeZone
+    body.end = endObj
+  }
   if (params.reminderMinutes !== undefined) {
     body.reminders = {
       useDefault: false,
