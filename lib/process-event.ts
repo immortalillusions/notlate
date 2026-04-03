@@ -18,6 +18,20 @@ import {
 import type { GCalEvent } from '@/lib/google-calendar'
 import type { User } from '@/lib/supabase-types'
 
+/**
+ * Derives an Etc/GMT±X timezone from the UTC offset in an ISO 8601 string.
+ * Used as a fallback when event.start.timeZone is absent (calendar default tz).
+ * Note: Etc/GMT signs are inverted vs ISO offsets (Etc/GMT+4 = UTC-4).
+ */
+function isoOffsetToEtcTimezone(dateTimeStr: string): string | undefined {
+  const match = dateTimeStr.match(/([+-])(\d{2}):\d{2}$/)
+  if (!match) return undefined
+  const hours = parseInt(match[2])
+  if (hours === 0) return 'UTC'
+  const etcSign = match[1] === '+' ? '-' : '+'
+  return `Etc/GMT${etcSign}${hours}`
+}
+
 export async function processEvent(
   event: GCalEvent,
   user: User,
@@ -27,7 +41,10 @@ export async function processEvent(
   if (!event.location) return
 
   const eventStart = new Date(event.start.dateTime)
-  const eventTimeZone = event.start.timeZone ?? event.start.timeZone ?? undefined
+  // Prefer the explicit IANA timezone from the event; fall back to deriving a
+  // display timezone from the UTC offset in the dateTime string so times are
+  // shown in the event's local time even on a UTC server (e.g. Vercel).
+  const eventTimeZone = event.start.timeZone ?? isoOffsetToEtcTimezone(event.start.dateTime)
 
   // Load existing override (if any)
   const { data: override } = await supabase
@@ -103,8 +120,8 @@ export async function processEvent(
   }
 
   const leaveByTime = computeLeaveByTime(eventStart, route.durationSeconds, buffer)
-  const title = buildTravelBlockTitle(leaveByTime, event.summary, eventTimeZone)
-  const description = buildTravelBlockDescription(route, weather, isEventMoved, eventTimeZone)
+  const title = buildTravelBlockTitle(leaveByTime, event.summary, mode, eventTimeZone)
+  const description = buildTravelBlockDescription(route, weather, leaveByTime, isEventMoved, eventTimeZone, departure)
 
   const existingBlockId = override?.travel_block_gcal_id
 

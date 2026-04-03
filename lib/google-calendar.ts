@@ -61,12 +61,33 @@ export async function getEvent(
   return res.json()
 }
 
+function formatDateForCalendar(date: Date, timeZone?: string): string {
+  if (!timeZone) return date.toISOString()
+
+  // Build a YYYY-MM-DDTHH:mm:ss string in the target timezone (no offset/Z)
+  const df = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+  const parts = df.formatToParts(date)
+  const lookup: Record<string, string> = {}
+  for (const p of parts) lookup[p.type] = p.value
+  // parts include year, month, day, hour, minute, second
+  return `${lookup.year}-${lookup.month}-${lookup.day}T${lookup.hour}:${lookup.minute}:${lookup.second}`
+}
+
 export async function createCalendarEvent(
   accessToken: string,
   params: CreateEventParams
 ): Promise<string> {
-  const startObj: Record<string, unknown> = { dateTime: params.start.toISOString() }
-  const endObj: Record<string, unknown> = { dateTime: params.end.toISOString() }
+  const startObj: Record<string, unknown> = { dateTime: formatDateForCalendar(params.start, params.timeZone) }
+  const endObj: Record<string, unknown> = { dateTime: formatDateForCalendar(params.end, params.timeZone) }
   if (params.timeZone) {
     startObj.timeZone = params.timeZone
     endObj.timeZone = params.timeZone
@@ -103,12 +124,12 @@ export async function updateCalendarEvent(
   if (params.summary) body.summary = params.summary
   if (params.description !== undefined) body.description = params.description
   if (params.start) {
-    const startObj: Record<string, unknown> = { dateTime: params.start.toISOString() }
+    const startObj: Record<string, unknown> = { dateTime: formatDateForCalendar(params.start, params.timeZone) }
     if (params.timeZone) startObj.timeZone = params.timeZone
     body.start = startObj
   }
   if (params.end) {
-    const endObj: Record<string, unknown> = { dateTime: params.end.toISOString() }
+    const endObj: Record<string, unknown> = { dateTime: formatDateForCalendar(params.end, params.timeZone) }
     if (params.timeZone) endObj.timeZone = params.timeZone
     body.end = endObj
   }

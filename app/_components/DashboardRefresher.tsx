@@ -8,7 +8,7 @@ import { useEffect } from 'react'
 export default function DashboardRefresher() {
   const router = useRouter()
   useEffect(() => {
-    const id = setInterval(() => router.refresh(), 5_000)
+    const id = setInterval(() => router.refresh(),30_000)
     return () => clearInterval(id)
   }, [router])
   return null

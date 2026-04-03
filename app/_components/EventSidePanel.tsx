@@ -37,8 +37,10 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
   )
 
   // Reminder section — independent from the save form
+  // If the event has an explicit reminder override, treat it as fixed mode.
+  // Otherwise fall back to the user's global reminder mode.
   const [reminderMode, setReminderMode] = useState<'fixed' | 'ai'>(
-    userDefaults.reminder_mode as 'fixed' | 'ai'
+    override?.reminder_minutes != null ? 'fixed' : (userDefaults.reminder_mode as 'fixed' | 'ai')
   )
   const [reminderMinutes, setReminderMinutes] = useState(
     override?.reminder_minutes ?? userDefaults.fixed_reminder_minutes

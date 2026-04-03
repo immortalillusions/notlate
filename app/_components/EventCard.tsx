@@ -80,11 +80,21 @@ export default function EventCard({ event, override, userDefaults }: Props) {
               <p className="text-xs text-zinc-400 mt-1 truncate">{event.location}</p>
             )}
             {override?.travel_block_gcal_id && !override.directions_error && (
-              <p className="text-xs text-zinc-500 mt-1.5">
-                🚗{' '}
-                {override.travel_mode ?? userDefaults.default_travel_mode} •{' '}
-                {override.buffer_minutes ?? userDefaults.default_buffer_minutes} min buffer
-              </p>
+              <div className="text-xs text-zinc-500 mt-1.5 space-y-0.5">
+                {(() => {
+                  const mode = override.travel_mode ?? userDefaults.default_travel_mode
+                  const modeEmoji = mode === 'transit' ? '🚌' : mode === 'walking' ? '🚶' : '🚗'
+                  const departure = override.departure_location ?? userDefaults.default_departure
+                  const buffer = override.buffer_minutes ?? userDefaults.default_buffer_minutes
+                  const reminder = override.reminder_minutes ?? userDefaults.fixed_reminder_minutes
+                  return (
+                    <>
+                      <p>{modeEmoji} {mode} · {buffer} min buffer · {reminder} min reminder</p>
+                      {departure && <p className="text-zinc-400">From: {departure}</p>}
+                    </>
+                  )
+                })()}
+              </div>
             )}
             {override?.directions_error && (
               <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mt-1.5">

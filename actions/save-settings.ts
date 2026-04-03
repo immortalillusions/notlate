@@ -65,5 +65,6 @@ export async function saveSettings(
   if (error) return { error: 'Failed to save settings' }
 
   revalidatePath('/dashboard')
+  revalidatePath('/settings')
   return { success: true }
 }

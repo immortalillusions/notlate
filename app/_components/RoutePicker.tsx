@@ -13,6 +13,7 @@ interface Props {
   travelMode: string
   bufferMinutes: number
   reminderMinutes: number
+  eventTimeZone?: string
   onApplied: () => void
 }
 
@@ -33,6 +34,7 @@ export default function RoutePicker({
   travelMode,
   bufferMinutes,
   reminderMinutes,
+  eventTimeZone,
   onApplied,
 }: Props) {
   const [state, action, pending] = useActionState(applyRoute, null)
@@ -47,6 +49,7 @@ export default function RoutePicker({
     formData.set('travel_mode', travelMode)
     formData.set('buffer_minutes', String(bufferMinutes))
     formData.set('reminder_minutes', String(reminderMinutes))
+    formData.set('event_time_zone', eventTimeZone ?? '')
     formData.set(
       'route',
       JSON.stringify({
@@ -61,9 +64,16 @@ export default function RoutePicker({
             : route.arrivalTime,
       })
     )
-    startTransition(() => {
-      action(formData)
-      onApplied()
+    startTransition(async () => {
+      try {
+        const result = await action(formData)
+        // If server action succeeded, then trigger UI refresh/close
+        if ((result as any)?.success) {
+          onApplied()
+        }
+      } catch (err) {
+        console.error('applyRoute failed', err)
+      }
     })
   }
 

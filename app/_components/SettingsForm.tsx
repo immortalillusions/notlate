@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useState, useEffect } from 'react'
 import { saveSettings } from '@/actions/save-settings'
 import type { User, OnboardingAnswers } from '@/lib/supabase-types'
 
@@ -29,6 +29,8 @@ const ACTIVITY_LABELS: { key: keyof OnboardingAnswers; label: string }[] = [
 export default function SettingsForm({ user }: Props) {
   const [state, action, pending] = useActionState(saveSettings, null)
   const [reminderMode, setReminderMode] = useState<'fixed' | 'ai'>(user.reminder_mode)
+  // Sync with server-rendered value after a successful save + revalidation
+  useEffect(() => { setReminderMode(user.reminder_mode) }, [user.reminder_mode])
 
   return (
     <form action={action} className="space-y-6">

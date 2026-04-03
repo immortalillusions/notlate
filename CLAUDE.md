@@ -184,7 +184,7 @@ alter table event_overrides add column if not exists directions_error text;
 Travel time: 45 min  |  Leave by: 2:05 PM
 
 Route:
-  🚌 Bus 72: board College St → alight Spadina Ave (4 stops)
+  🚌 Bus 72: board College St → arrive Spadina Ave (4 stops)
   🚶 Walk to destination (5 min)
 
 Weather at destination (3:00 PM):

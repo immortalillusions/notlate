@@ -45,7 +45,9 @@ export async function fetchDirections(
     throw new Error(`Directions API error: ${data.status} — ${data.error_message ?? ''}`)
   }
 
-  return (data.routes as GoogleRoute[]).map((route) => parseRoute(route, mode))
+  return (data.routes as GoogleRoute[]).map((route) =>
+    parseRoute(route, mode, arrivalTime)
+  )
 }
 
 interface GoogleRoute {
@@ -64,6 +66,7 @@ interface GoogleLeg {
 interface GoogleStep {
   travel_mode: string
   duration: { value: number }
+  distance?: { text: string; value: number }
   html_instructions: string
   transit_details?: {
     line: { short_name?: string; name?: string }
@@ -73,17 +76,21 @@ interface GoogleStep {
   }
 }
 
-function parseRoute(route: GoogleRoute, mode: TravelMode): RouteAlternative {
+function parseRoute(
+  route: GoogleRoute,
+  mode: TravelMode,
+  requestedArrivalTime: Date
+): RouteAlternative {
   const leg = route.legs[0]
   const durationSeconds = leg.duration.value
 
-  // arrival_time is present for transit; for driving/walking use the param
-  const arrivalEpoch = leg.arrival_time?.value
-  const departureEpoch = leg.departure_time?.value
-
-  const arrivalTime = arrivalEpoch ? new Date(arrivalEpoch * 1000) : new Date()
-  const departureTime = departureEpoch
-    ? new Date(departureEpoch * 1000)
+  // Transit provides actual departure/arrival times from the API.
+  // Driving and walking do not — use the requested arrival time instead.
+  const arrivalTime = leg.arrival_time
+    ? new Date(leg.arrival_time.value * 1000)
+    : requestedArrivalTime
+  const departureTime = leg.departure_time
+    ? new Date(leg.departure_time.value * 1000)
     : new Date(arrivalTime.getTime() - durationSeconds * 1000)
 
   const steps: RouteStep[] = leg.steps.map((step) => {
@@ -92,31 +99,27 @@ function parseRoute(route: GoogleRoute, mode: TravelMode): RouteAlternative {
       const line = td.line.short_name ?? td.line.name ?? 'Transit'
       const numStops = td.num_stops ?? 0
       const stopLabel = numStops === 1 ? '1 stop' : `${numStops} stops`
-      const description = `${line}: board ${td.departure_stop?.name ?? '?'} → alight ${td.arrival_stop?.name ?? '?'} (${stopLabel})`
       return {
         type: 'transit',
-        description,
+        description: `${line}: board ${td.departure_stop?.name ?? '?'} → arrive ${td.arrival_stop?.name ?? '?'} (${stopLabel})`,
         durationSeconds: step.duration.value,
         departureStop: td.departure_stop?.name,
         arrivalStop: td.arrival_stop?.name,
         numStops: td.num_stops,
       }
     }
-    if (step.travel_mode === 'WALKING') {
-      return {
-        type: 'walk',
-        description: `walk ${Math.round(step.duration.value / 60)} min`,
-        durationSeconds: step.duration.value,
-      }
-    }
+    // Walking and driving: clean HTML instruction and append distance
+    const instruction = cleanDriveInstruction(step.html_instructions)
+    const description = step.distance?.text
+      ? `${instruction} (${step.distance.text})`
+      : instruction
     return {
-      type: 'drive',
-      description: stripHtml(step.html_instructions),
+      type: step.travel_mode === 'WALKING' ? 'walk' : 'drive',
+      description,
       durationSeconds: step.duration.value,
     }
   })
 
-  // Build human-readable summary
   const routeSummary =
     mode === 'transit'
       ? steps.map((s) => s.description).join(' → ')
@@ -132,6 +135,10 @@ function parseRoute(route: GoogleRoute, mode: TravelMode): RouteAlternative {
   }
 }
 
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').trim()
+/** Strip HTML from a driving instruction, removing sub-instruction divs. */
+function cleanDriveInstruction(html: string): string {
+  return html
+    .replace(/<div[^>]*>[\s\S]*?<\/div>/gi, '') // drop "Toward X" sub-lines
+    .replace(/<[^>]*>/g, '')                     // strip remaining tags
+    .trim()
 }

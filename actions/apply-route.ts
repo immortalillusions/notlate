@@ -8,7 +8,9 @@ import { getValidAccessToken } from '@/lib/google-token'
 import {
   createCalendarEvent,
   updateCalendarEvent,
+  getEvent as getCalendarEvent,
 } from '@/lib/google-calendar'
+import type { GCalEvent } from '@/lib/google-calendar'
 import {
   buildTravelBlockTitle,
   buildTravelBlockDescription,
@@ -16,6 +18,7 @@ import {
 } from '@/lib/travel-block'
 import { fetchWeather } from '@/lib/weather'
 import type { RouteAlternative } from '@/lib/supabase-types'
+import type { TravelMode } from '@/lib/directions'
 
 const routeSchema = z.object({
   durationSeconds: z.number(),
@@ -89,7 +92,12 @@ export async function applyRoute(
     arrivalTime: new Date(routeData.arrivalTime),
   }
 
-  const eventStart = new Date(event_start)
+  // Prefer the authoritative event data fetched from Google so Apply Route
+  // uses the same start.dateTime and start.timeZone as Refresh/process-event.
+  const accessToken = await getValidAccessToken(session.user.id)
+  const gcalEvent = await getCalendarEvent(accessToken, gcal_event_id).catch(() => null)
+  const eventStartStr = gcalEvent?.start?.dateTime ?? event_start
+  const eventStart = new Date(eventStartStr)
   const leaveByTime = computeLeaveByTime(eventStart, route.durationSeconds, buffer_minutes)
 
   // Fetch weather
@@ -99,8 +107,35 @@ export async function applyRoute(
     eventStart
   )
 
-  const title = buildTravelBlockTitle(leaveByTime, event_title)
-  const description = buildTravelBlockDescription(route, weather)
+  // Determine final timezone: prefer explicit timezone from the calendar
+  // event (when fetched), then client-provided IANA timezone, then derive
+  // an Etc/GMT fallback from the ISO offset so formatting matches Refresh.
+  const clientTz = (formData.get('event_time_zone') as string) || undefined
+  const calendarTz = (gcalEvent as GCalEvent | null)?.start?.timeZone
+  const tzMatch = eventStartStr.match(/([+-])(\d{2}):\d{2}$/)
+  const derivedEtc = tzMatch
+    ? tzMatch[2] === '00'
+      ? 'UTC'
+      : `Etc/GMT${tzMatch[1] === '+' ? '-' : '+'}${parseInt(tzMatch[2], 10)}`
+    : undefined
+  const finalTimeZone = calendarTz || clientTz || derivedEtc
+
+  // Use the actual leaveByTime that we'll send to Google Calendar and format
+  // it with the same timezone. This ensures the "Leave by" shown in the
+  // travel block title matches the calendar event time.
+  // If the chosen route contains transit steps, prefer showing the transit
+  // emoji in the title even if the override's travel_mode differs. This fixes
+  // cases where the UI sent a mismatched travel_mode but the route itself is transit.
+  const displayMode: TravelMode = route.steps.some((s) => s.type === 'transit') ? 'transit' : travel_mode
+  const title = buildTravelBlockTitle(leaveByTime, event_title, displayMode, finalTimeZone)
+  const description = buildTravelBlockDescription(
+    route,
+    weather ?? null,
+    leaveByTime,
+    false,
+    finalTimeZone,
+    departure_location || undefined
+  )
 
   // Load existing override to find travel block ID
   const { data: override } = await supabase
@@ -110,7 +145,6 @@ export async function applyRoute(
     .eq('gcal_event_id', gcal_event_id)
     .maybeSingle()
 
-  const accessToken = await getValidAccessToken(session.user.id)
   let travelBlockId = override?.travel_block_gcal_id
 
   if (travelBlockId) {
@@ -120,6 +154,7 @@ export async function applyRoute(
       start: leaveByTime,
       end: eventStart,
       reminderMinutes: reminder_minutes,
+      timeZone: finalTimeZone,
     })
   } else {
     travelBlockId = await createCalendarEvent(accessToken, {
@@ -128,6 +163,7 @@ export async function applyRoute(
       start: leaveByTime,
       end: eventStart,
       reminderMinutes: reminder_minutes,
+      timeZone: finalTimeZone,
     })
   }
 
