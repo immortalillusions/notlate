@@ -112,7 +112,7 @@ The webhook fires frequently (phone syncs, other clients). To avoid unnecessary 
 ## Dashboard
 
 - Reads from `calendar_events` Supabase cache — **no Calendar API call on page load**
-- `DashboardRefresher` client component calls `router.refresh()` every 5 seconds so the page picks up webhook-triggered cache invalidations automatically
+- `DashboardRefresher` client component calls `router.refresh()` every 30 seconds so the page picks up webhook-triggered cache invalidations automatically
 - If no webhook is registered: shows banner prompting user to go to Settings
 
 ---

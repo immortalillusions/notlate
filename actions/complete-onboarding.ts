@@ -83,5 +83,6 @@ export async function completeOnboarding(
   }
 
   revalidatePath('/dashboard')
-  redirect('/dashboard')
+  // Open the tutorial on first run by adding a query param handled by the client helper
+  redirect('/dashboard?tutorial=1')
 }

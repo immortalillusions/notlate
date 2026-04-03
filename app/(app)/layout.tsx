@@ -2,6 +2,9 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { signOut } from '@/lib/auth'
 import Link from 'next/link'
+import OpenTutorialFromQuery from '@/app/_components/OpenTutorialFromQuery'
+import TutorialButton from '@/app/_components/TutorialButton'
+import TutorialModal from '@/app/_components/TutorialModal'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -28,22 +31,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </Link>
             </nav>
           </div>
-          <form
-            action={async () => {
-              'use server'
-              await signOut({ redirectTo: '/login' })
-            }}
-          >
-            <button
-              type="submit"
-              className="text-sm text-zinc-500 hover:text-zinc-700 transition-colors"
+          <div className="flex items-center gap-4">
+            <TutorialButton />
+            <form
+              action={async () => {
+                'use server'
+                await signOut({ redirectTo: '/login' })
+              }}
             >
-              Sign out
-            </button>
-          </form>
+              <button
+                type="submit"
+                className="text-sm text-zinc-500 hover:text-zinc-700 transition-colors"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
       </header>
       <main className="flex-1 mx-auto w-full max-w-4xl px-4 py-8">{children}</main>
+      <OpenTutorialFromQuery />
+      <TutorialModal />
     </div>
   )
 }

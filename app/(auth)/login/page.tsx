@@ -1,17 +1,24 @@
 import { signIn } from '@/lib/auth'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import OpenTutorialFromQuery from '@/app/_components/OpenTutorialFromQuery'
+import TutorialButton from '@/app/_components/TutorialButton'
+import TutorialModal from '@/app/_components/TutorialModal'
 
 export default async function LoginPage() {
   const session = await auth()
   if (session) redirect('/dashboard')
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16">
+    <main className="relative flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16">
+      <div className="absolute top-4 right-4">
+        <TutorialButton />
+      </div>
+
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">NotLate</h1>
         <p className="mt-2 text-zinc-500 max-w-sm">
-          Automatically adds travel time blocks to your Google Calendar so you always leave on time.
+          Auto-adds travel time blocks, detailed instructions, and personalized reminders so you always leave on time.
         </p>
       </div>
 
@@ -19,8 +26,9 @@ export default async function LoginPage() {
         <ul className="text-sm text-zinc-600 text-left space-y-2 mb-6">
           <li>✅ Reads your calendar events with a location</li>
           <li>✅ Creates &quot;Leave by&quot; blocks automatically</li>
-          <li>✅ Updates when events move</li>
+          <li>✅ Auto-updates when events change</li>
           <li>✅ Includes weather at your destination</li>
+          <li>✅ AI infers preparation time to set reminder notifs</li>
         </ul>
 
         <form
@@ -59,6 +67,9 @@ export default async function LoginPage() {
           Requires access to Google Calendar to create events.
         </p>
       </div>
+
+      <OpenTutorialFromQuery />
+      <TutorialModal />
     </main>
   )
 }
