@@ -10,16 +10,17 @@ export type SyncState = { error?: string; success?: boolean } | null
 
 export async function syncCalendarEvents(_prev: SyncState): Promise<SyncState> {
   const session = await auth()
-  if (!session?.user?.id) return { error: 'Not authenticated' }
+  const userId = session?.user?.id
+  if (!userId) return { error: 'Not authenticated' }
 
   try {
-    const accessToken = await getValidAccessToken(session.user.id)
+    const accessToken = await getValidAccessToken(userId)
     const events = await listUpcomingEventsWithLocation(accessToken)
 
     if (events.length > 0) {
       await supabase.from('calendar_events').upsert(
         events.map((e) => ({
-          user_id: session.user.id,
+          user_id: userId,
           gcal_event_id: e.id,
           summary: e.summary ?? '',
           location: e.location ?? null,
