@@ -226,9 +226,19 @@ alter table watch_channels add column if not exists last_synced_at timestamptz;
 
 - **Get routes** — saves departure/mode/buffer to DB AND fetches routes in one click. Overrides are only saved when a route is actually selected ("Choose this route"). Exiting the panel without choosing a route leaves existing overrides untouched.
 - **Reminder section** — independent AI/Fixed toggle per event
-  - Initialises to 'fixed' if event has an explicit `reminder_minutes` override, otherwise user's global mode
-  - Fixed: type minutes → "Update reminder on calendar" → updates GCal travel block + DB
-  - AI: "Update reminder on calendar" → always calls Gemini fresh → updates GCal + DB
+  - Initialization for new events:
+    - When a calendar event is first created and a travel block is auto-generated, set the travel-block reminder as follows:
+      - If the user default `reminder_mode` is `ai`, call Gemini once during initial creation to determine the reminder minutes and use that value.
+      - If the user default `reminder_mode` is `fixed`, use the user's `fixed_reminder_minutes` for the travel block reminder.
+  - Important rules for subsequent actions (Refresh / event updates / moves / apply-route):
+    - Do NOT change reminders when the user clicks Refresh, when an event is edited/moved, or when `apply-route` runs. These actions should only create/update travel block content (title/description/start/end) and must preserve any existing reminder value.
+    - Reminders are changed only by the explicit "Update reminder on calendar" action (Fixed or AI) or by the initial auto-creation of a travel block for a newly created calendar event.
+  - "Update reminder on calendar" button behavior:
+    - Fixed: when the user types minutes and clicks the button, update the travel block reminder on Google Calendar and save the override.
+    - AI: when clicked, always call Gemini fresh (no caching) to get reminder minutes, update the travel block reminder on calendar, and save the override.
+  - Background `process-event` behavior:
+    - `process-event` may call Gemini only during initial creation of a travel block when the user's default is AI. It must not call Gemini on Refresh or when updating an existing travel block due to event edits/moves.
+    - If Gemini fails or returns a non-integer it should return `-1` and the code must fall back to `fixed_reminder_minutes` as a safe default.
 
 ---
 
@@ -246,7 +256,6 @@ Route:
 Weather at destination (3:00 PM):
 🌧️ Precipitation: 1.2mm | 🌡️ 8°C (feels like 5°C)
 
-⚠️ Reminder time not updated — open app to refresh   ← only on auto-moved events
 ```
 
 Title format: `{emoji} Leave by {time} — {event name}`

@@ -82,7 +82,7 @@ export async function applyRoute(
     departure_location,
     travel_mode,
     buffer_minutes,
-    reminder_minutes,
+    // reminder_minutes intentionally unused — apply-route must not change reminders
     route: routeData,
   } = parsed.data
 
@@ -140,7 +140,7 @@ export async function applyRoute(
   // Load existing override to find travel block ID
   const { data: override } = await supabase
     .from('event_overrides')
-    .select('travel_block_gcal_id')
+    .select('travel_block_gcal_id, reminder_minutes')
     .eq('user_id', session.user.id)
     .eq('gcal_event_id', gcal_event_id)
     .maybeSingle()
@@ -170,13 +170,19 @@ export async function applyRoute(
     }
   }
 
+  // Preserve reminder behavior: apply-route must NOT modify reminders.
+  // If an override already specified reminder_minutes, leave the travel
+  // block's reminders untouched. When creating a new travel block via
+  // apply-route, do not set reminderMinutes so we don't change a reminder
+  // unintentionally (reminders are only set on initial auto-creation or
+  // via the explicit "Update reminder" action).
   if (travelBlockId) {
     await updateCalendarEvent(accessToken, travelBlockId, {
       summary: title,
       description,
       start: leaveByTime,
       end: eventStart,
-      reminderMinutes: reminder_minutes,
+      // do not include reminderMinutes here
       timeZone: finalTimeZone,
     })
   } else {
@@ -185,25 +191,28 @@ export async function applyRoute(
       description,
       start: leaveByTime,
       end: eventStart,
-      reminderMinutes: reminder_minutes,
+      // do not include reminderMinutes here
       timeZone: finalTimeZone,
     })
   }
 
-  await supabase.from('event_overrides').upsert(
-    {
-      user_id: session.user.id,
-      gcal_event_id,
-      departure_location,
-      travel_mode,
-      buffer_minutes,
-      reminder_minutes,
-      travel_block_gcal_id: travelBlockId,
-      last_event_start: eventStart.toISOString(),
-      updated_at: new Date().toISOString(),
-    },
+  // Upsert overrides but DO NOT overwrite reminder_minutes here — reminders
+  // are only changed via explicit user action or initial auto-creation.
+  const upsertPayload: Record<string, unknown> = {
+    user_id: session.user.id,
+    gcal_event_id,
+    departure_location,
+    travel_mode,
+    buffer_minutes,
+    travel_block_gcal_id: travelBlockId,
+    last_event_start: eventStart.toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+  const { data: upsertData, error: upsertError } = await supabase.from('event_overrides').upsert(
+    upsertPayload,
     { onConflict: 'user_id,gcal_event_id' }
   )
+  console.log('applyRoute: supabase upsert result:', { upsertData, upsertError })
 
   revalidatePath('/dashboard')
   return { success: true }

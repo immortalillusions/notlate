@@ -13,7 +13,7 @@ interface CreateEventParams {
   description: string
   start: Date
   end: Date
-  reminderMinutes: number
+  reminderMinutes?: number
   timeZone?: string
 }
 
@@ -93,15 +93,18 @@ export async function createCalendarEvent(
     endObj.timeZone = params.timeZone
   }
 
-  const body = {
+  const body: Record<string, unknown> = {
     summary: params.summary,
     description: params.description,
     start: startObj,
     end: endObj,
-    reminders: {
+  }
+
+  if (params.reminderMinutes !== undefined) {
+    body.reminders = {
       useDefault: false,
       overrides: [{ method: 'popup', minutes: params.reminderMinutes }],
-    },
+    }
   }
 
   const res = await calendarFetch(accessToken, '/calendars/primary/events', {

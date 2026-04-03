@@ -67,7 +67,7 @@ export function buildTravelBlockDescription(
 
   if (isEventMoved) {
     lines.push('')
-    lines.push('⚠️ Reminder time not updated — open app to refresh')
+    lines.push('Event moved: travel block auto updated!')
   }
 
   return lines.join('\n')

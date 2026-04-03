@@ -49,7 +49,7 @@ export default function RoutePicker({
     formData.set('travel_mode', travelMode)
     formData.set('buffer_minutes', String(bufferMinutes))
     formData.set('reminder_minutes', String(reminderMinutes))
-    formData.set('event_time_zone', eventTimeZone ?? '')
+formData.set('event_time_zone', eventTimeZone ?? '')
     formData.set(
       'route',
       JSON.stringify({
