@@ -147,6 +147,29 @@ export async function applyRoute(
 
   let travelBlockId = override?.travel_block_gcal_id
 
+  // If a travel block ID exists in our DB, verify the event still exists in
+  // the user's calendar. If it was manually deleted, clear the stored id so
+  // we create a fresh travel block (prevents silent no-op when user deleted it).
+  if (travelBlockId) {
+    const existingTravel = await getCalendarEvent(accessToken, travelBlockId).catch(() => null)
+    // Treat cancelled events as effectively deleted so we regenerate them
+    const travelExists = !!existingTravel && existingTravel.status !== 'cancelled'
+    if (!travelExists) {
+      travelBlockId = undefined
+      // Clear stored id immediately to avoid races if user clicks again.
+      const { error: updateError } = await supabase
+        .from('event_overrides')
+        .update({ travel_block_gcal_id: null, updated_at: new Date().toISOString() })
+        .match({ user_id: session.user.id, gcal_event_id })
+
+      if (updateError) {
+        // If update failed for any reason, remove the row to guarantee a
+        // clean state — we'll recreate the override after creating the travel block.
+        await supabase.from('event_overrides').delete().match({ user_id: session.user.id, gcal_event_id })
+      }
+    }
+  }
+
   if (travelBlockId) {
     await updateCalendarEvent(accessToken, travelBlockId, {
       summary: title,

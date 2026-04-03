@@ -68,13 +68,19 @@ export async function POST(
       // Check the travel block exists in the user's calendar
       try {
         const tbEvent = await getEvent(accessToken, ovBefore.travel_block_gcal_id)
-        if (!tbEvent) {
-          // Travel block was deleted — clear stored id so processEvent will create a new one
-          await supabase
+        // Treat cancelled calendar events as effectively deleted so refresh
+        // will recreate them.
+        const tbExists = !!tbEvent && (tbEvent.status ?? '') !== 'cancelled'
+        if (!tbExists) {
+          // Travel block was deleted or cancelled — clear stored id so processEvent will create a new one
+          const { error } = await supabase
             .from('event_overrides')
-            .update({ travel_block_gcal_id: null })
-            .eq('user_id', session.user.id)
-            .eq('gcal_event_id', eventId)
+            .update({ travel_block_gcal_id: null, updated_at: new Date().toISOString() })
+            .match({ user_id: session.user.id, gcal_event_id: eventId })
+          if (error) {
+            // fallback to deleting the override row if update fails
+            await supabase.from('event_overrides').delete().match({ user_id: session.user.id, gcal_event_id: eventId })
+          }
         }
       } catch (err) {
         console.error('Failed to verify travel block existence:', err)
