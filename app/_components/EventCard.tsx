@@ -74,6 +74,17 @@ export default function EventCard({ event, override, userDefaults }: Props) {
                   Block set
                 </span>
               )}
+
+              <div className="ml-auto">
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                >
+                  {isRefreshing ? '…' : 'Refresh'}
+                </button>
+              </div>
             </div>
             <p className="text-sm text-zinc-500 mt-0.5">{formatDateTime(event.start.dateTime)}</p>
             {event.location && (
@@ -105,15 +116,6 @@ export default function EventCard({ event, override, userDefaults }: Props) {
               <p className="text-xs text-red-600 mt-1">{refreshError}</p>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
-          >
-            {isRefreshing ? '…' : 'Refresh'}
-          </button>
         </div>
       </div>
 
