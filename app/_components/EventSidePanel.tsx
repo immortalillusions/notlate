@@ -139,7 +139,7 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
               {eventDateStr} at {eventTimeStr}
             </p>
             {event.location && (
-              <p className="text-xs text-zinc-400 mt-0.5 truncate">{event.location}</p>
+              <p className="text-xs text-zinc-400 mt-0.5 text-wrap">{event.location}</p>
             )}
           </div>
           <button

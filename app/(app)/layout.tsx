@@ -19,13 +19,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <nav className="flex gap-4 text-sm">
               <Link
                 href="/dashboard"
-                className="text-zinc-600 hover:text-zinc-900 transition-colors"
+                className="text-zinc-700 hover:text-zinc-900 transition-colors"
               >
                 Dashboard
               </Link>
               <Link
                 href="/settings"
-                className="text-zinc-600 hover:text-zinc-900 transition-colors"
+                className="text-zinc-700 hover:text-zinc-900 transition-colors"
               >
                 Settings
               </Link>
@@ -41,7 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             >
               <button
                 type="submit"
-                className="text-sm text-zinc-500 hover:text-zinc-700 transition-colors"
+                className="text-sm text-zinc-700 hover:text-zinc-900 cursor-pointer transition-colors"
               >
                 Sign out
               </button>

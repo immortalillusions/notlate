@@ -10,7 +10,7 @@ export default async function LoginPage() {
   if (session) redirect('/dashboard')
 
   return (
-    <main className="relative flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16">
+    <main className="relative bg-white flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16">
       <div className="absolute top-4 right-4">
         <TutorialButton />
       </div>
@@ -28,7 +28,7 @@ export default async function LoginPage() {
           <li>✅ Creates &quot;Leave by&quot; blocks automatically</li>
           <li>✅ Auto-updates when events change</li>
           <li>✅ Includes weather at your destination</li>
-          <li>✅ AI infers preparation time to set reminder notifs</li>
+          <li>✅ AI sets the perfect reminder time</li>
         </ul>
 
         <form

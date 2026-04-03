@@ -63,7 +63,7 @@ export default async function DashboardPage() {
       <div>
         <h1 className="text-2xl font-bold">Upcoming events</h1>
         <p className="text-sm text-zinc-500 mt-0.5">
-          Events with a location — travel blocks managed automatically
+          Auto-managed travel. AI-timed notifications.
         </p>
       </div>
 
