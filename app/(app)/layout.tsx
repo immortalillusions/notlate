@@ -13,8 +13,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex flex-col min-h-screen">
       <header className="sticky top-0 z-10 bg-white border-b border-zinc-200">
-        <div className="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+        <div className="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between max-[375px]:py-6">
+          <div className="flex items-center gap-6 max-[375px]:flex-col max-[375px]:items-start max-[375px]:gap-2">
             <span className="font-bold text-lg">NotLate</span>
             <nav className="flex gap-4 text-sm">
               <Link

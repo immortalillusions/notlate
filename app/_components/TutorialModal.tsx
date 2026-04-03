@@ -30,19 +30,19 @@ export default function TutorialModal() {
         onClick={() => setOpen(false)}
         aria-hidden
       />
-      <div className="relative z-10 w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg">
+      <div className="relative z-10 w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg max-[480px]:max-w-md max-[360px]:max-w-sm max-[375px]:max-w-[18rem] max-[375px]:p-3">
         <div className="flex items-start justify-between gap-4">
-          <h2 className="text-lg font-semibold">Tutorial</h2>
+          <h2 className="text-lg font-semibold max-[375px]:text-base">Tutorial</h2>
           <button
             onClick={() => setOpen(false)}
             aria-label="Close tutorial"
-            className="rounded-full bg-zinc-100 px-3 py-1 text-sm hover:bg-zinc-200"
+            className="rounded-full bg-zinc-100 px-3 py-1 text-sm hover:bg-zinc-200 max-[375px]:px-2 max-[375px]:py-0.5 max-[375px]:text-xs"
           >
             Close
           </button>
         </div>
 
-        <div className="mt-4 space-y-4 text-sm text-zinc-700">
+        <div className="mt-4 space-y-4 text-sm text-zinc-700 max-[375px]:text-xs">
           <p>
             Welcome!
           </p>
