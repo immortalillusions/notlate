@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NotLate — Travel Time Calendar App
 
-## Getting Started
+Automatically adds travel time blocks to Google Calendar events that have a location. Manage settings and routes via a web dashboard; travel blocks appear natively in Google Calendar on all devices.
 
-First, run the development server:
+## Tech Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Frontend/Backend:** Next.js 16 App Router (TypeScript, Tailwind v4)
+- **Auth:** Auth.js v5 (`next-auth@beta`) — Google OAuth
+- **Database:** Supabase (PostgreSQL)
+- **Hosting:** Vercel
+- **Scheduler:** Vercel Cron Jobs
+
+## Features
+
+- Auto-creates travel blocks when a Google Calendar event with a location is added or updated
+- Webhook-based real-time sync (only triggers Directions API when location or start time changes)
+- Driving, transit, and walking support with detailed route steps
+- Weather at destination included in travel block description
+- AI reminder estimation via Gemini (classifies event type, returns your prep time for that category)
+- Fixed or AI reminder mode per event, with per-event overrides
+- Places autocomplete (server-side proxy, session-token billed)
+- Dashboard auto-refreshes when webhooks detect changes
+
+## Setup
+
+### 1. Environment Variables
+
+Create `.env.local`:
+
+```env
+NEXTAUTH_SECRET=          # openssl rand -base64 32
+AUTH_SECRET=              # same value as NEXTAUTH_SECRET
+NEXTAUTH_URL=             # http://localhost:3000 (omit on Vercel)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+GOOGLE_MAPS_API_KEY=      # server-side only
+GEMINI_API_KEY=
+NEXT_PUBLIC_APP_URL=      # your Vercel URL in prod
+CRON_SECRET=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Google Cloud
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Create a project and enable billing
+2. Enable: **Google Calendar API**, **Directions API (Legacy)**, **Places API**
+3. Create OAuth 2.0 credentials
+   - Authorised redirect URIs: `http://localhost:3000/api/auth/callback/google` + your Vercel URL
+4. Set a daily quota cap on Directions API (~50 req/day) + $1/month budget alert
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Supabase
 
-## Learn More
+Run migrations in order via the Supabase SQL editor:
 
-To learn more about Next.js, take a look at the following resources:
+- `supabase/migrations/001_init.sql`
+- `supabase/migrations/002_directions_error.sql`
+- `supabase/migrations/003_calendar_events.sql`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 4. Vercel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Deploy and set all env vars. Add a Cron Job in `vercel.json` to call `/api/cron/renew-webhooks` every 6 days (webhooks expire after 7 days).
 
-## Deploy on Vercel
+## Development
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm install
+npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open [http://localhost:3000](http://localhost:3000).
+
+> **Note:** Google Calendar webhooks require a public HTTPS URL and won't fire on localhost. Use the "Sync now" button in Settings or "Refresh" on each event card to test the flow locally.
+
+## AI Reminder Categories
+
+When AI mode is selected, Gemini classifies each event into one of:
+
+| Category | Examples |
+|---|---|
+| Professional (Low) | Work meetings, classes |
+| Professional (High) | Interviews, exams, networking |
+| Social | Hangouts, dinners, parties, dates |
+| Fitness | Gym, runs, sports |
+| Errands | Groceries, therapy, appointments |
+| Special Event | Weddings, concerts, conferences |
+
+The matched category's prep time (set during onboarding/settings) is used as the reminder.

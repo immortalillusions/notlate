@@ -15,13 +15,12 @@ const schema = z.object({
   fixed_reminder_minutes: z.coerce.number().int().min(1).max(120),
   onboarding_answers: z
     .object({
-      meeting: z.coerce.number().int().min(0),
-      hangout: z.coerce.number().int().min(0),
-      date: z.coerce.number().int().min(0),
-      rock_climbing: z.coerce.number().int().min(0),
-      exercise: z.coerce.number().int().min(0),
-      running: z.coerce.number().int().min(0),
-      food: z.coerce.number().int().min(0),
+      professional_low: z.coerce.number().int().min(0),
+      professional_high: z.coerce.number().int().min(0),
+      social: z.coerce.number().int().min(0),
+      fitness: z.coerce.number().int().min(0),
+      errands: z.coerce.number().int().min(0),
+      special_event: z.coerce.number().int().min(0),
     })
     .optional(),
 })
@@ -51,13 +50,12 @@ export async function completeOnboarding(
     onboarding_answers:
       formData.get('reminder_mode') === 'ai'
         ? {
-            meeting: formData.get('ans_meeting'),
-            hangout: formData.get('ans_hangout'),
-            date: formData.get('ans_date'),
-            rock_climbing: formData.get('ans_rock_climbing'),
-            exercise: formData.get('ans_exercise'),
-            running: formData.get('ans_running'),
-            food: formData.get('ans_food'),
+            professional_low: formData.get('ans_professional_low'),
+            professional_high: formData.get('ans_professional_high'),
+            social: formData.get('ans_social'),
+            fitness: formData.get('ans_fitness'),
+            errands: formData.get('ans_errands'),
+            special_event: formData.get('ans_special_event'),
           }
         : undefined,
   }

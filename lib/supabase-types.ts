@@ -15,13 +15,12 @@ export interface User {
 }
 
 export interface OnboardingAnswers {
-  meeting: number
-  hangout: number
-  date: number
-  rock_climbing: number
-  exercise: number
-  running: number
-  food: number
+  professional_low: number
+  professional_high: number
+  social: number
+  fitness: number
+  errands: number
+  special_event: number
 }
 
 export interface EventOverride {

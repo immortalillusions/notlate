@@ -4,15 +4,42 @@ import { useActionState, useState } from 'react'
 import { completeOnboarding } from '@/actions/complete-onboarding'
 import AddressAutocomplete from './AddressAutocomplete'
 
-const ACTIVITY_LABELS: Record<string, string> = {
-  meeting: 'A work meeting',
-  hangout: 'Casual hangout with friends',
-  date: 'A date',
-  rock_climbing: 'Rock climbing',
-  exercise: 'Gym / exercise',
-  running: 'Running',
-  food: 'Going out to eat',
-}
+const ACTIVITY_LABELS: { key: string; label: string; sublabel: string }[] = [
+  {
+    key: 'professional_low',
+    label: 'Work meeting or class',
+    sublabel: 'On average, how long do you take to get ready for a typical work meeting or class?',
+  },
+  {
+    key: 'professional_high',
+    label: 'Interview, exam, or networking',
+    sublabel:
+      'How long do you typically spend preparing for important events like interviews, exams, or networking?',
+  },
+  {
+    key: 'social',
+    label: 'Social plans',
+    sublabel:
+      'How long do you usually take to get ready for social plans (e.g., hanging out, dinner, parties)?',
+  },
+  {
+    key: 'fitness',
+    label: 'Workout or physical activity',
+    sublabel: 'How long does it take you to get ready for workouts or physical activities?',
+  },
+  {
+    key: 'errands',
+    label: 'Errands or appointments',
+    sublabel:
+      'How long does it usually take you to get ready for errands or appointments (e.g., groceries, therapy, quick tasks)?',
+  },
+  {
+    key: 'special_event',
+    label: 'Special events',
+    sublabel:
+      'How long do you typically spend getting ready for special events (e.g., weddings, conferences, concerts, formal events)?',
+  },
+]
 
 export default function OnboardingForm() {
   const [state, action, pending] = useActionState(completeOnboarding, null)
@@ -138,13 +165,14 @@ export default function OnboardingForm() {
           <h2 className="font-semibold text-lg">
             How long does it take you to get ready for each activity?
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {Object.entries(ACTIVITY_LABELS).map(([key, label]) => (
-              <div key={key} className="flex items-center justify-between gap-4">
-                <label htmlFor={`ans_${key}`} className="text-sm text-zinc-700">
-                  {label}
-                </label>
-                <div className="flex items-center gap-1.5 shrink-0">
+          <div className="grid gap-5 sm:grid-cols-2">
+            {ACTIVITY_LABELS.map(({ key, label, sublabel }) => (
+              <div key={key} className="space-y-2">
+                <div>
+                  <p className="text-sm font-medium text-zinc-700">{label}</p>
+                  <p className="text-xs text-zinc-400">{sublabel}</p>
+                </div>
+                <div className="flex items-center gap-1.5">
                   <input
                     id={`ans_${key}`}
                     type="number"
