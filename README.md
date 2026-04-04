@@ -79,6 +79,42 @@ Open [http://localhost:3000](http://localhost:3000).
 
 > **Note:** Google Calendar webhooks require a public HTTPS URL and won't fire on localhost. Use the "Sync now" button in Settings or "Refresh" on each event card to test the flow locally.
 
+## How Google knows where to send webhook notifications
+
+During onboarding (and on each cron renewal), `registerWebhook()` in `lib/webhook.ts` calls the Google Calendar watch API and registers your app's URL as the notification target. Google stores that URL and POSTs to it on every calendar change.
+
+The registration returns a `channel_id` which is saved to the `watch_channels` Supabase table. When Google fires a notification, it includes that `channel_id` in the request headers — the POST handler in `app/api/webhook/calendar/route.ts` uses it to look up which user the notification belongs to (since all users share the same endpoint URL).
+
+```
+lib/webhook.ts → registerWebhook()
+  → POSTs to Google Calendar watch API
+  → tells Google: send notifications to /api/webhook/calendar
+  → saves channel_id + expiration to watch_channels table
+
+Calendar changes later...
+  → Google POSTs to /api/webhook/calendar
+  → route.ts reads x-goog-channel-id header
+  → looks up channel_id in watch_channels → finds user
+  → processes changes
+```
+
+`registerWebhook()` is called from:
+- `actions/complete-onboarding.ts` — on first setup
+- `actions/register-webhook.ts` — manual re-register from Settings
+- `app/api/cron/renew-webhooks/route.ts` — automatic renewal every 6 days (watch channels expire after ~7 days)
+
+## Dashboard refresh vs. travel block creation
+
+These are two independent concerns — it's easy to conflate them.
+
+**Travel block creation is purely server-side.** When a calendar change happens, Google posts to the webhook, which calls `processEvent`, which calls the Directions API and creates/updates the travel block in Google Calendar. This is instant and requires nothing from the browser.
+
+**The dashboard UI is a different story.** The webhook calls `revalidatePath('/dashboard')` after processing, which marks the server's cached render as stale. But the browser tab that's already open has no way of knowing this happened — HTTP doesn't push. So `DashboardRefresher` polls `router.refresh()` every 30 seconds to pick up the fresh render.
+
+Without the poll: travel blocks still get created instantly in Google Calendar, but the dashboard card would show stale data until the user manually refreshed the page. The poll exists purely for dashboard UI freshness, not for the core functionality.
+
+If you wanted to remove the poll, you'd need a WebSocket or Server-Sent Events channel so the server can notify the browser immediately after `revalidatePath` — more complexity than it's worth for a calendar app.
+
 ## AI Reminder Categories
 
 When AI mode is selected, Gemini classifies each event into one of:
