@@ -313,8 +313,8 @@ CRON_SECRET
 
 ## Known Issues / TODO
 
-- [ ] Gemini sometimes returns wrong values — prompt improvement needed
+- [x] Gemini sometimes returns wrong values — prompt improvement needed
 - [ ] Webhooks don't fire on `localhost` (Google can't reach it). Use ngrok/Cloudflare tunnel or deploy to Vercel to test the automatic flow. Manual Refresh on each event works as a workaround in dev.
-- [ ] `calendar_events` table must be populated via "Sync now" in Settings after first webhook registration (the initial `sync` notification fires before the table is ready)
+- [x] `calendar_events` table must be populated via "Sync now" in Settings after first webhook registration (the initial `sync` notification fires before the table is ready)
 - [x] **Replace `DashboardRefresher` polling with Supabase Realtime** — implemented in `lib/supabase-client.ts` + `DashboardRefresher.tsx`. Still requires: `NEXT_PUBLIC_SUPABASE_ANON_KEY` env var + Realtime enabled on `calendar_events` table in Supabase dashboard.
 - [ ] **Consider merging `calendar_events` + `event_overrides`** — same PK, always queried together. Main risk: the webhook upserts `calendar_events` aggressively on every fire; a combined table requires every upsert to explicitly list only GCal columns to avoid clobbering user override columns (departure, travel mode, etc.). Currently safe by structure.
