@@ -13,6 +13,29 @@ function getAppUrl(): string {
   return url
 }
 
+export async function stopWebhook(userId: string): Promise<void> {
+  const { data: channel } = await supabase
+    .from('watch_channels')
+    .select('channel_id, resource_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (channel) {
+    const accessToken = await getValidAccessToken(userId)
+    // Best-effort: Google returns 404 for already-expired channels — ignore
+    await fetch('https://www.googleapis.com/calendar/v3/channels/stop', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id: channel.channel_id, resourceId: channel.resource_id }),
+    }).catch(() => {})
+
+    await supabase.from('watch_channels').delete().eq('user_id', userId)
+  }
+}
+
 export async function registerWebhook(userId: string): Promise<void> {
   const appUrl = getAppUrl()
   const channelId = crypto.randomUUID()

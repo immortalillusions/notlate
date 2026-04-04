@@ -14,6 +14,7 @@ Automatically adds travel time blocks to Google Calendar events that have a loca
 
 - Auto-creates travel blocks when a Google Calendar event with a location is added or updated
 - Webhook-based real-time sync — only processes events in the next 7 days, only triggers Directions API when location or start time changes
+- Disable webhook button in Settings — pauses all automatic calendar writes without deleting any data; re-registering resumes normal operation
 - Driving, transit, and walking support with detailed route steps
 - Weather at destination included in travel block description
 - AI reminder estimation via Gemini (classifies event type, returns your prep time for that category)
@@ -139,7 +140,17 @@ Open [http://localhost:3000](http://localhost:3000).
 
 - Registered on onboarding completion via `POST /calendars/primary/events/watch`
 - Webhook TTL ≈ 7 days — Vercel Cron renews every 6 days
-- Settings page shows webhook status (active / expired / not registered) with days remaining and Re-register button
+- Settings page shows webhook status (active / expired / not registered) with days remaining, Re-register button, and Disable button
+
+### Disabling the webhook
+
+The Settings page has a **Disable webhook** button (visible when the webhook is active). This is the intended way for users to pause the app:
+
+- Calls Google's `channels.stop` endpoint to unsubscribe, then deletes the `watch_channels` row
+- Without that row, the webhook POST handler returns 200 immediately without processing anything
+- The `renew-webhooks` cron skips users with no `watch_channels` row, so the webhook will not be auto-renewed
+- Manual dashboard actions (Refresh, route selection, reminder updates) still work — those require explicit user clicks
+- Re-registering via the Register button resumes full automatic operation; no duplicate travel blocks are created because `processEvent` always upserts by `travel_block_gcal_id`
 
 ### How Google knows where to send notifications
 
@@ -162,6 +173,9 @@ Calendar changes later...
 - `actions/complete-onboarding.ts` — on first setup
 - `actions/register-webhook.ts` — manual re-register from Settings
 - `app/api/cron/renew-webhooks/route.ts` — automatic renewal every 6 days
+
+`stopWebhook()` is called from:
+- `actions/disable-webhook.ts` — Disable button in Settings
 
 ### Webhook Change Detection
 
@@ -271,7 +285,7 @@ app/
     EventSidePanel.tsx            → travel settings + Get routes (saves overrides only on route selection)
     RoutePicker.tsx               → expandable route cards → "Choose this route"
     SelectDropdown.tsx            → custom rounded dropdown (native select can't be rounded)
-    WebhookSection.tsx            → webhook status, Re-register button
+    WebhookSection.tsx            → webhook status, Re-register button, Disable button
     OnboardingForm.tsx            → multi-step onboarding with Places autocomplete
     SettingsForm.tsx              → settings with Places autocomplete + AI questionnaire
     ThemeProvider.tsx             → reads localStorage on mount, applies dark class to <html>
@@ -292,7 +306,7 @@ lib/
   weather.ts                      → Open-Meteo
   gemini.ts                       → Gemini prep time estimation (returns -1 on failure)
   travel-block.ts                 → title (mode emoji) + description (departure, route steps, weather) builders
-  webhook.ts                      → register + renew watch channels
+  webhook.ts                      → register, renew, and stop watch channels
   process-event.ts                → shared flow: directions → weather → Gemini → GCal create/update
 
 actions/
@@ -301,6 +315,7 @@ actions/
   save-override.ts                → saves departure/travel_mode/buffer to DB only (no GCal)
   apply-route.ts                  → saves chosen route + overrides, creates/updates GCal travel block
   register-webhook.ts             → manual re-register (skips if >3 days remaining)
+  disable-webhook.ts              → stops webhook via Google channels.stop + deletes watch_channels row
   sync-events.ts                  → fetches Calendar API → upserts calendar_events cache
 ```
 

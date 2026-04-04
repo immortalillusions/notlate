@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo } from 'react'
 import { registerWebhookAction } from '@/actions/register-webhook'
+import { disableWebhookAction } from '@/actions/disable-webhook'
 
 interface Props {
   expiration: string | null
@@ -10,6 +11,10 @@ interface Props {
 export default function WebhookSection({ expiration }: Props) {
   const [registerState, registerAction, registerPending] = useActionState(
     registerWebhookAction,
+    null
+  )
+  const [disableState, disableAction, disablePending] = useActionState(
+    disableWebhookAction,
     null
   )
 
@@ -44,16 +49,28 @@ export default function WebhookSection({ expiration }: Props) {
         )}
       </div>
 
-      <div className="flex flex-wrap">
+      <div className="flex flex-wrap gap-2">
         <form action={registerAction}>
           <button
             type="submit"
-            disabled={registerPending || !canReRegister}
+            disabled={registerPending || disablePending || !canReRegister}
             className="rounded-lg bg-(--gcal-blue) px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-40"
           >
             {registerPending ? 'Registering…' : isActive ? 'Re-register' : 'Register webhook'}
           </button>
         </form>
+
+        {isActive && (
+          <form action={disableAction}>
+            <button
+              type="submit"
+              disabled={disablePending || registerPending}
+              className="rounded-lg border border-red-300 dark:border-red-700 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40"
+            >
+              {disablePending ? 'Disabling…' : 'Disable webhook (stop auto-updates)'}
+            </button>
+          </form>
+        )}
 
         {/* Sync now moved to dashboard when no events present */}
       </div>
@@ -68,6 +85,12 @@ export default function WebhookSection({ expiration }: Props) {
       )}
       {registerState?.success && (
         <p className="text-xs text-green-700 dark:text-green-400">Webhook registered successfully.</p>
+      )}
+      {disableState?.error && (
+        <p className="text-xs text-red-600 dark:text-red-400">{disableState.error}</p>
+      )}
+      {disableState?.success && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">Webhook disabled. Calendar will no longer auto-update.</p>
       )}
     </div>
   )

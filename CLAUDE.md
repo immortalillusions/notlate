@@ -81,7 +81,14 @@ A web app that automatically adds travel time blocks to Google Calendar events t
 - Registered on onboarding completion via `POST /calendars/primary/events/watch`
 - Webhook TTL ≈ 7 days — Vercel Cron renews every 6 days (`vercel.json`)
 - On `localhost`: Google cannot POST to localhost, so webhooks never fire in dev
-- Settings page shows webhook status (active / expired / not registered) with days remaining, Re-register button, and Sync now button
+- Settings page shows webhook status (active / expired / not registered) with days remaining, Re-register button, and Disable button
+
+### Disabling the webhook
+- The **Disable webhook** button in Settings is the intended way for users to pause the app
+- Calls `stopWebhook()` in `lib/webhook.ts` → `POST /calendar/v3/channels/stop` (best-effort, ignores 404 for expired channels) → deletes the `watch_channels` row
+- Without that row, the webhook POST handler returns 200 immediately with no processing; the `renew-webhooks` cron also skips the user
+- Manual dashboard actions (Refresh, route selection, reminder updates) still touch GCal — those require explicit user clicks and are not affected by this flag
+- Re-registering resumes full automatic operation; no duplicate travel blocks because `processEvent` always upserts by `travel_block_gcal_id`
 
 ### Webhook Change Detection (critical)
 The webhook fires frequently (phone syncs, other clients). To avoid unnecessary API calls:
@@ -160,7 +167,7 @@ app/
     EventCard.tsx                 → shows event + mode emoji + departure + buffer + reminder values
     EventSidePanel.tsx            → travel settings + Get routes (saves overrides only on route selection)
     RoutePicker.tsx               → expandable route cards → "Choose this route"
-    WebhookSection.tsx            → webhook status, Re-register button, Sync now button
+    WebhookSection.tsx            → webhook status, Re-register button, Disable button
     OnboardingForm.tsx            → multi-step onboarding with Places autocomplete
     SettingsForm.tsx              → settings with Places autocomplete + AI questionnaire
     SessionProvider.tsx           → wraps next-auth SessionProvider
@@ -175,7 +182,7 @@ lib/
   weather.ts                      → Open-Meteo
   gemini.ts                       → Gemini prep time estimation (returns -1 on failure)
   travel-block.ts                 → title (mode emoji) + description (departure, route steps, weather) builders
-  webhook.ts                      → register + renew watch channels
+  webhook.ts                      → register, renew, and stop watch channels
   process-event.ts                → shared flow: directions → weather → Gemini → GCal
 
 actions/
@@ -184,6 +191,7 @@ actions/
   save-override.ts                → saves departure/travel_mode/buffer to DB only (no GCal)
   apply-route.ts                  → saves chosen route + overrides, creates/updates GCal travel block
   register-webhook.ts             → manual re-register (throttled: skips if >3 days remaining)
+  disable-webhook.ts              → stops webhook via Google channels.stop + deletes watch_channels row
   sync-events.ts                  → fetches Calendar API → upserts calendar_events cache
 ```
 
