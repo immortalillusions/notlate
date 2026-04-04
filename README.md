@@ -34,6 +34,7 @@ NEXTAUTH_URL=             # http://localhost:3000 (omit on Vercel)
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=  # for DashboardRefresher Supabase Realtime
 SUPABASE_SERVICE_ROLE_KEY=
 GOOGLE_MAPS_API_KEY=      # server-side only
 GEMINI_API_KEY=
@@ -109,11 +110,11 @@ These are two independent concerns — it's easy to conflate them.
 
 **Travel block creation is purely server-side.** When a calendar change happens, Google posts to the webhook, which calls `processEvent`, which calls the Directions API and creates/updates the travel block in Google Calendar. This is instant and requires nothing from the browser.
 
-**The dashboard UI is a different story.** The webhook calls `revalidatePath('/dashboard')` after processing, which marks the server's cached render as stale. But the browser tab that's already open has no way of knowing this happened — HTTP doesn't push. So `DashboardRefresher` polls `router.refresh()` every 30 seconds to pick up the fresh render.
+**The dashboard UI is a different story.** The webhook calls `revalidatePath('/dashboard')` after processing, which marks the server's cached render as stale. But the browser tab that's already open has no way of knowing this happened — HTTP doesn't push. So `DashboardRefresher` would need to poll — but instead it uses **Supabase Realtime**.
 
-Without the poll: travel blocks still get created instantly in Google Calendar, but the dashboard card would show stale data until the user manually refreshed the page. The poll exists purely for dashboard UI freshness, not for the core functionality.
+**How Supabase Realtime replaces polling:** On Vercel serverless, the webhook handler and an open browser tab run in separate isolated processes, so a persistent WebSocket connection between them isn't possible without external pub/sub infrastructure (e.g. Redis). Supabase Realtime solves this without extra infrastructure: the browser opens a WebSocket connection to Supabase and subscribes to `calendar_events` table changes. When the webhook upserts rows, Supabase detects the change via Postgres `LISTEN/NOTIFY` and pushes the event over that WebSocket to the subscribed browser tab, which calls `router.refresh()` once — no polling needed. Free tier includes 500 concurrent connections and 2 million messages/month.
 
-**Planned improvement — Supabase Realtime:** On Vercel serverless, the webhook handler and an open browser tab run in separate isolated processes, so a persistent WebSocket connection between them isn't possible without external pub/sub infrastructure (e.g. Redis). Supabase Realtime solves this without extra infrastructure: the browser opens a WebSocket connection to Supabase and subscribes to `calendar_events` table changes. When the webhook upserts rows, Supabase detects the change via Postgres `LISTEN/NOTIFY` and pushes the event over that WebSocket to the subscribed browser tab, which calls `router.refresh()` once — no polling needed. Requires enabling Realtime on the `calendar_events` table in Supabase and adding `NEXT_PUBLIC_SUPABASE_ANON_KEY` to env vars. Free tier includes 500 concurrent connections and 2 million messages/month.
+`DashboardRefresher` is implemented in `app/_components/DashboardRefresher.tsx` using `lib/supabase-client.ts` (anon key, safe to expose). Requires `NEXT_PUBLIC_SUPABASE_ANON_KEY` env var and Realtime enabled on the `calendar_events` table in Supabase dashboard.
 
 ## Why `calendar_events` and `event_overrides` are separate tables
 

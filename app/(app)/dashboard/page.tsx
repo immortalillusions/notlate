@@ -59,7 +59,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardRefresher />
+      <DashboardRefresher userId={userId} />
       <div>
         <h1 className="text-2xl font-bold">Upcoming events</h1>
         <p className="text-sm text-zinc-500 mt-0.5">
