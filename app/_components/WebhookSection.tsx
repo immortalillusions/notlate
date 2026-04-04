@@ -27,8 +27,18 @@ export default function WebhookSection({ expiration }: Props) {
     return Math.max(0, diff / (1000 * 60 * 60 * 24))
   }, [expiration])
 
-  const isActive = daysRemaining !== null && daysRemaining > 0
-  const canReRegister = !isActive || (daysRemaining !== null && daysRemaining <= 3)
+  const serverActive = daysRemaining !== null && daysRemaining > 0
+
+  // Override server state with the outcome of client-side actions.
+  // registerState.success beats disableState.success (user re-registered after disabling).
+  const effectivelyActive = registerState?.success
+    ? true
+    : disableState?.success
+      ? false
+      : serverActive
+
+  const wasJustDisabled = disableState?.success && !registerState?.success
+  const canReRegister = !effectivelyActive || (daysRemaining !== null && daysRemaining <= 3)
 
   return (
     <div className="rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-5 space-y-4">
@@ -40,13 +50,13 @@ export default function WebhookSection({ expiration }: Props) {
       </div>
 
       <div className="text-sm">
-        {isActive ? (
+        {effectivelyActive ? (
           <span className="text-green-700">
             Active &mdash; {Math.floor(daysRemaining!)} day{Math.floor(daysRemaining!) !== 1 ? 's' : ''} remaining
           </span>
-        ) : (
+        ) : !wasJustDisabled ? (
           <span className="text-red-600">Not registered or expired</span>
-        )}
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -56,11 +66,11 @@ export default function WebhookSection({ expiration }: Props) {
             disabled={registerPending || disablePending || !canReRegister}
             className="rounded-lg bg-(--gcal-blue) px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-40"
           >
-            {registerPending ? 'Registering…' : isActive ? 'Re-register' : 'Register webhook'}
+            {registerPending ? 'Registering…' : effectivelyActive ? 'Re-register' : 'Register webhook'}
           </button>
         </form>
 
-        {isActive && (
+        {effectivelyActive && (
           <form action={disableAction}>
             <button
               type="submit"
@@ -75,10 +85,11 @@ export default function WebhookSection({ expiration }: Props) {
         {/* Sync now moved to dashboard when no events present */}
       </div>
 
-      <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-0.5">
-        Vercel cron will auto renew webhook every 6 days but you may also do it manually.
-      </p>
-      
+      {!wasJustDisabled && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-0.5">
+          Vercel cron will auto renew webhooks every 6 days but you may also do it manually.
+        </p>
+      )}
 
       {registerState?.error && (
         <p className="text-xs text-red-600 dark:text-red-400">{registerState.error}</p>
@@ -89,7 +100,7 @@ export default function WebhookSection({ expiration }: Props) {
       {disableState?.error && (
         <p className="text-xs text-red-600 dark:text-red-400">{disableState.error}</p>
       )}
-      {disableState?.success && (
+      {wasJustDisabled && (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">Webhook disabled. Calendar will no longer auto-update.</p>
       )}
     </div>
