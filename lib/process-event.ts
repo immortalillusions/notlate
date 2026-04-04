@@ -150,11 +150,16 @@ export async function processEvent(
     console.log(`Created travel block ${travelBlockId} for event ${event.id}`)
   }
 
-  // Upsert event_override — clear any previous directions_error on success
+  // Upsert event_override — clear any previous directions_error on success.
+  // Explicitly round-trip departure_location, travel_mode, buffer_minutes so
+  // nullable columns are never silently reset to null by the upsert merge.
   const upsertData: Record<string, unknown> = {
     user_id: user.id,
     gcal_event_id: event.id,
     travel_block_gcal_id: travelBlockId,
+    departure_location: override?.departure_location ?? null,
+    travel_mode: override?.travel_mode ?? null,
+    buffer_minutes: override?.buffer_minutes ?? null,
     last_event_start: eventStart.toISOString(),
     directions_error: null,
     updated_at: new Date().toISOString(),
