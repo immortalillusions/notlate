@@ -67,7 +67,7 @@ export default function RoutePicker({
     startTransition(async () => {
       try {
         const result = action(formData)
-        if ((result as { success?: boolean } | null)?.success) {
+        if ((result as unknown as { success?: boolean } | null)?.success) {
           onApplied()
         }
       } catch (err) {
