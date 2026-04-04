@@ -23,7 +23,7 @@ const schema = z.object({
     .optional(),
 })
 
-export type SettingsState = { error?: string; success?: boolean } | null
+export type SettingsState = { error?: string; success?: boolean; reminder_mode?: 'fixed' | 'ai' } | null
 
 export async function saveSettings(
   _prev: SettingsState,
@@ -64,5 +64,5 @@ export async function saveSettings(
 
   revalidatePath('/dashboard')
   revalidatePath('/settings')
-  return { success: true }
+  return { success: true, reminder_mode: parsed.data.reminder_mode }
 }

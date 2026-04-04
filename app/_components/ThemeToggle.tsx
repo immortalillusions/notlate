@@ -6,13 +6,30 @@ export default function ThemeToggle() {
   const [dark, setDark] = useState(false)
 
   useEffect(() => {
-    setDark(document.documentElement.classList.contains('dark'))
+    // Initialize from document and listen for theme changes dispatched elsewhere in the window
+    const update = () => setDark(document.documentElement.classList.contains('dark'))
+    update()
+
+    const handler = (e: Event) => {
+      // Try to treat the event as a CustomEvent with a typed detail
+      const ce = e as CustomEvent<{ isDark?: boolean }>
+      if (ce && typeof ce.detail?.isDark !== 'undefined') {
+        setDark(Boolean(ce.detail.isDark))
+      } else {
+        update()
+      }
+    }
+
+    window.addEventListener('theme-change', handler as EventListener)
+    return () => window.removeEventListener('theme-change', handler as EventListener)
   }, [])
 
   function toggle() {
     const isDark = document.documentElement.classList.toggle('dark')
     setDark(isDark)
     localStorage.setItem('theme', isDark ? 'dark' : 'light')
+    // Notify other instances in the same window so they stay in sync
+    window.dispatchEvent(new CustomEvent('theme-change', { detail: { isDark } }))
   }
 
   return (

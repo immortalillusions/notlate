@@ -61,7 +61,14 @@ export default function SettingsForm({ user }: Props) {
   const [state, action, pending] = useActionState(saveSettings, null)
   const [departure, setDeparture] = useState(user.default_departure ?? '')
   const [reminderMode, setReminderMode] = useState<'fixed' | 'ai'>(user.reminder_mode)
-  useEffect(() => { setReminderMode(user.reminder_mode) }, [user.reminder_mode])
+  // savedMode tracks the last confirmed-saved value; used to key+defaultCheck the radio group
+  const [savedMode, setSavedMode] = useState<'fixed' | 'ai'>(user.reminder_mode)
+  useEffect(() => {
+    if (state?.success && state.reminder_mode) {
+      setSavedMode(state.reminder_mode)
+      setReminderMode(state.reminder_mode)
+    }
+  }, [state])
   useEffect(() => { setDeparture(user.default_departure ?? '') }, [user.default_departure])
 
   return (
@@ -133,7 +140,7 @@ export default function SettingsForm({ user }: Props) {
       <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 space-y-4">
         <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Reminder</h2>
 
-        <div className="space-y-3">
+        <div key={savedMode} className="space-y-3">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="radio"

@@ -16,7 +16,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="sticky top-0 z-10 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-700 shadow-sm">
         <div className="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between max-[375px]:py-6">
           <div className="flex items-center gap-6 max-[375px]:flex-col max-[375px]:items-start max-[375px]:gap-2">
-            <span className="font-bold text-lg text-(--gcal-blue)">NotLate</span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-lg text-(--gcal-blue)">NotLate</span>
+              {/* small-screen toggle: visible only at <=375px */}
+              <div className="hidden max-[375px]:block">
+                <ThemeToggle />
+              </div>
+            </div>
             <nav className="flex gap-4 text-sm">
               <Link
                 href="/dashboard"
@@ -33,7 +39,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
           <div className="flex items-center gap-4">
-            <ThemeToggle />
+            {/* main toggle: hidden on small screens */}
+            <div className="block max-[375px]:hidden">
+              <ThemeToggle />
+            </div>
             <TutorialButton />
             <form
               action={async () => {

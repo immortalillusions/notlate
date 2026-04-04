@@ -49,7 +49,7 @@ export default function TutorialModal() {
 
           <ol className="list-decimal list-inside space-y-2">
             <li>
-              Events with a location in your Google Calendar appear on the Dashboard. NotLate auto creates a travel event for each using your default settings, so you know when to leave.
+              Events in the next 7 days with a location in your Google Calendar appear on the Dashboard. NotLate auto creates a travel event for each using your default settings, so you know when to leave.
             </li>
             <li>
               The Event card shows the suggested departure, travel mode, buffer and reminder. Click the card to open the side panel where you can override departure, mode, or buffer for that event.
