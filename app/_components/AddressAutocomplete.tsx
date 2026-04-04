@@ -36,6 +36,9 @@ export default function AddressAutocomplete({
   // is selected so the next search starts a fresh session.
   const sessionTokenRef = useRef<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Snapshot of value when the user focuses the input — used to revert if
+  // they exit without selecting a prediction.
+  const valueOnFocusRef = useRef(value)
 
   function getToken(): string {
     if (!sessionTokenRef.current) sessionTokenRef.current = crypto.randomUUID()
@@ -89,6 +92,12 @@ export default function AddressAutocomplete({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Escape') {
+      onChange(valueOnFocusRef.current)
+      setOpen(false)
+      setPredictions([])
+      return
+    }
     if (!open || predictions.length === 0) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -99,8 +108,6 @@ export default function AddressAutocomplete({
     } else if (e.key === 'Enter' && activeIdx >= 0) {
       e.preventDefault()
       handleSelect(predictions[activeIdx])
-    } else if (e.key === 'Escape') {
-      setOpen(false)
     }
   }
 
@@ -112,16 +119,18 @@ export default function AddressAutocomplete({
     setDropdownRect({ top: r.bottom, left: r.left, width: r.width })
   }, [open, predictions])
 
-  // Close on outside click
+  // Close on outside click — revert if user didn't select a prediction
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
       if (inputRef.current && !inputRef.current.contains(e.target as Node)) {
+        if (open) onChange(valueOnFocusRef.current)
         setOpen(false)
+        setPredictions([])
       }
     }
     document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
-  }, [])
+  }, [open, onChange])
 
   return (
     <>
@@ -132,7 +141,10 @@ export default function AddressAutocomplete({
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onFocus={() => predictions.length > 0 && setOpen(true)}
+        onFocus={() => {
+          valueOnFocusRef.current = value
+          if (predictions.length > 0) setOpen(true)
+        }}
         placeholder={placeholder}
         className={className}
         required={required}
