@@ -26,9 +26,12 @@ export async function getValidAccessToken(userId: string): Promise<string> {
     if (res.ok) return user.access_token
 
     if (res.status !== 401) {
+      // Non-expiry error (e.g. scope 403) — don't attempt refresh, surface it
       throw new Error(`Calendar API error: ${res.status}`)
     }
-  } catch {
+    // 401 falls through to refresh below
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('Calendar API error:')) throw err
     // Network error — try to refresh anyway
   }
 

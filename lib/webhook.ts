@@ -59,6 +59,15 @@ export async function registerWebhook(userId: string): Promise<void> {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
+    const isScope =
+      res.status === 403 &&
+      (err?.error?.status === 'PERMISSION_DENIED' ||
+        err?.error?.errors?.[0]?.reason === 'insufficientPermissions')
+    if (isScope) {
+      throw new Error(
+        'Insufficient Google Calendar permissions. Please sign out and sign back in to re-authorize the app.'
+      )
+    }
     throw new Error(`Webhook registration failed: ${res.status} — ${JSON.stringify(err)}`)
   }
 
