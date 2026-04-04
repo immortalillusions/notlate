@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useActionState, useMemo } from 'react'
 import { registerWebhookAction } from '@/actions/register-webhook'
@@ -26,10 +26,10 @@ export default function WebhookSection({ expiration }: Props) {
   const canReRegister = !isActive || (daysRemaining !== null && daysRemaining <= 3)
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
+    <div className="rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-5 space-y-4">
       <div>
-        <h2 className="font-semibold text-sm">Calendar webhook</h2>
-        <p className="text-xs text-zinc-500 mt-0.5">
+        <h2 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">Calendar webhook</h2>
+        <p className="text-xs text-zinc-500 dark:text-zinc-300 mt-0.5">
           Keeps your travel blocks updated automatically when events change.
         </p>
       </div>
@@ -49,7 +49,7 @@ export default function WebhookSection({ expiration }: Props) {
           <button
             type="submit"
             disabled={registerPending || !canReRegister}
-            className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
+            className="rounded-lg bg-(--gcal-blue) px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-40"
           >
             {registerPending ? 'Registering…' : isActive ? 'Re-register' : 'Register webhook'}
           </button>
@@ -58,16 +58,16 @@ export default function WebhookSection({ expiration }: Props) {
         {/* Sync now moved to dashboard when no events present */}
       </div>
 
-          <p className="text-xs text-zinc-500 mb-0.5">
-          Vercel cron will auto renew webhook every 6 days but you may also do it manually.
-        </p>
+      <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-0.5">
+        Vercel cron will auto renew webhook every 6 days but you may also do it manually.
+      </p>
       
 
       {registerState?.error && (
-        <p className="text-xs text-red-600">{registerState.error}</p>
+        <p className="text-xs text-red-600 dark:text-red-400">{registerState.error}</p>
       )}
       {registerState?.success && (
-        <p className="text-xs text-green-700">Webhook registered successfully.</p>
+        <p className="text-xs text-green-700 dark:text-green-400">Webhook registered successfully.</p>
       )}
     </div>
   )

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
@@ -150,7 +150,7 @@ export default function AddressAutocomplete({
               width: dropdownRect.width,
               zIndex: 9999,
             }}
-            className="bg-white border border-zinc-200 rounded-lg shadow-lg py-1 max-h-60 overflow-y-auto"
+            className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-xl shadow-lg py-1 max-h-60 overflow-y-auto"
           >
             {predictions.map((p, i) => (
               <li
@@ -159,8 +159,8 @@ export default function AddressAutocomplete({
                   e.preventDefault() // prevent input blur before click registers
                   handleSelect(p)
                 }}
-                className={`px-3 py-2 text-sm cursor-pointer ${
-                  i === activeIdx ? 'bg-zinc-100' : 'hover:bg-zinc-50'
+                className={`px-3 py-2 text-sm cursor-pointer text-zinc-900 dark:text-zinc-100 ${
+                  i === activeIdx ? 'bg-slate-100 dark:bg-zinc-700' : 'hover:bg-slate-50 dark:hover:bg-zinc-700'
                 }`}
               >
                 {p.description}

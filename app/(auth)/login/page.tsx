@@ -1,8 +1,11 @@
-import { signIn } from '@/lib/auth'
+﻿import { signIn } from '@/lib/auth'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import CyclingText from '@/app/_components/CyclingText'
+import FeatureList from '@/app/_components/FeatureList'
 import OpenTutorialFromQuery from '@/app/_components/OpenTutorialFromQuery'
 import TutorialButton from '@/app/_components/TutorialButton'
+import ThemeToggle from '@/app/_components/ThemeToggle'
 import TutorialModal from '@/app/_components/TutorialModal'
 
 export default async function LoginPage() {
@@ -10,26 +13,21 @@ export default async function LoginPage() {
   if (session) redirect('/dashboard')
 
   return (
-    <main className="relative bg-white flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16">
-      <div className="absolute top-4 right-4">
+    <main className="relative flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16 bg-slate-50 dark:bg-neutral-900">
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <ThemeToggle />
         <TutorialButton />
       </div>
 
       <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight">NotLate</h1>
-        <p className="mt-2 text-zinc-500 max-w-sm">
-          Auto-adds travel time blocks, detailed instructions, and personalized reminders so you always leave on time.
+        <h1 className="text-3xl font-bold tracking-tight text-(--gcal-blue)">NotLate</h1>
+        <p className="mt-2 text-zinc-500 dark:text-zinc-300 w-64">
+          Auto-adds <CyclingText /> <br></br>Planned for you to leave on cue
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 p-8 w-full max-w-sm shadow-sm text-center space-y-4">
-        <ul className="text-sm text-zinc-600 text-left space-y-2 mb-6">
-          <li>✅ Reads your calendar events with a location</li>
-          <li>✅ Creates &quot;Leave by&quot; blocks automatically</li>
-          <li>✅ Auto-updates when events change</li>
-          <li>✅ Includes weather at your destination</li>
-          <li>✅ AI sets the perfect reminder time</li>
-        </ul>
+      <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 w-full max-w-sm shadow-sm text-center space-y-4">
+        <FeatureList />
 
         <form
           action={async () => {
@@ -39,7 +37,7 @@ export default async function LoginPage() {
         >
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-3 rounded-lg bg-white border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 transition-colors"
+            className="w-full flex items-center justify-center gap-3 rounded-lg bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-100 shadow-sm hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden>
               <path
@@ -63,7 +61,7 @@ export default async function LoginPage() {
           </button>
         </form>
 
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-zinc-400 dark:text-zinc-400">
           Requires access to Google Calendar to create events.
         </p>
       </div>

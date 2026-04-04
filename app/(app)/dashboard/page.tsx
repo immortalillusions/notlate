@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+﻿import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { CalendarEvent, EventOverride, User } from '@/lib/supabase-types'
@@ -62,7 +62,7 @@ export default async function DashboardPage() {
       <DashboardRefresher userId={userId} />
       <div>
         <h1 className="text-2xl font-bold">Upcoming events</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">
+        <p className="text-sm text-zinc-500 dark:text-zinc-300 mt-0.5">
           Auto-managed travel. AI-timed notifications.
         </p>
       </div>

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -63,14 +63,14 @@ export default function EventCard({ event, override, userDefaults }: Props) {
         tabIndex={0}
         onClick={() => setPanelOpen(true)}
         onKeyDown={(e) => e.key === 'Enter' && setPanelOpen(true)}
-        className="rounded-2xl border border-zinc-200 bg-white px-5 py-4 hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer group"
+        className="rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-5 py-4 hover:border-slate-300 dark:hover:border-zinc-600 hover:shadow-sm dark:hover:shadow-zinc-900 transition-all cursor-pointer group"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-base truncate">{event.summary}</h3>
+              <h3 className="font-semibold text-base truncate text-zinc-900 dark:text-zinc-100">{event.summary}</h3>
               {hasTravelBlock && (
-                <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 font-medium">
+                <span className="shrink-0 rounded-full bg-(--gcal-blue-light) px-2 py-0.5 text-xs text-(--gcal-blue-text) font-medium">
                   Block set
                 </span>
               )}
@@ -80,18 +80,18 @@ export default function EventCard({ event, override, userDefaults }: Props) {
                   type="button"
                   onClick={handleRefresh}
                   disabled={isRefreshing}
-                  className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                  className="shrink-0 rounded-lg border border-slate-200 dark:border-zinc-600 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
                 >
                   {isRefreshing ? '…' : 'Refresh'}
                 </button>
               </div>
             </div>
-            <p className="text-sm text-zinc-500 mt-0.5">{formatDateTime(event.start.dateTime)}</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-300 mt-0.5">{formatDateTime(event.start.dateTime)}</p>
             {event.location && (
-              <p className="text-xs text-zinc-400 mt-1 truncate">{event.location}</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-400 mt-1 truncate">{event.location}</p>
             )}
             {override?.travel_block_gcal_id && !override.directions_error && (
-              <div className="text-xs text-zinc-500 mt-1.5 space-y-0.5">
+              <div className="text-xs text-zinc-500 dark:text-zinc-300 mt-1.5 space-y-0.5">
                 {(() => {
                   const mode = override.travel_mode ?? userDefaults.default_travel_mode
                   const modeEmoji = mode === 'transit' ? '🚌' : mode === 'walking' ? '🚶' : '🚗'
@@ -101,19 +101,19 @@ export default function EventCard({ event, override, userDefaults }: Props) {
                   return (
                     <>
                       <p>{modeEmoji} {mode} · {buffer} min buffer · {reminder} min reminder</p>
-                      {departure && <p className="text-zinc-400">From: {departure}</p>}
+                      {departure && <p className="text-zinc-400 dark:text-zinc-400">From: {departure}</p>}
                     </>
                   )
                 })()}
               </div>
             )}
             {override?.directions_error && (
-              <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mt-1.5">
+              <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 rounded px-2 py-1 mt-1.5">
                 ⚠️ {override.directions_error}
               </p>
             )}
             {refreshError && (
-              <p className="text-xs text-red-600 mt-1">{refreshError}</p>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">{refreshError}</p>
             )}
           </div>
         </div>

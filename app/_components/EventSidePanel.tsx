@@ -1,9 +1,10 @@
-'use client'
+﻿'use client'
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import RoutePicker from './RoutePicker'
 import AddressAutocomplete from './AddressAutocomplete'
+import SelectDropdown from './SelectDropdown'
 import type { GCalEvent } from '@/lib/google-calendar'
 import type { EventOverride, RouteAlternative } from '@/lib/supabase-types'
 
@@ -125,26 +126,26 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
     <div className="fixed inset-0 z-30 flex" role="dialog" aria-modal>
       {/* Backdrop */}
       <button
-        className="flex-1 bg-black/30 cursor-default"
+        className="flex-1 bg-black/40 dark:bg-black/60 cursor-default"
         onClick={onClose}
         aria-label="Close panel"
       />
 
       {/* Panel */}
-      <div className="w-full max-w-sm bg-white h-full overflow-y-auto shadow-xl flex flex-col">
-        <div className="sticky top-0 bg-white border-b border-zinc-100 px-5 py-4 flex items-start justify-between">
+      <div className="w-full max-w-sm bg-white dark:bg-zinc-900 h-full overflow-y-auto shadow-xl flex flex-col">
+        <div className="sticky top-0 bg-white dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-700 px-5 py-4 flex items-start justify-between">
           <div>
-            <h2 className="font-semibold text-base">{event.summary}</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <h2 className="font-semibold text-base text-zinc-900 dark:text-zinc-100">{event.summary}</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-300 mt-0.5">
               {eventDateStr} at {eventTimeStr}
             </p>
             {event.location && (
-              <p className="text-xs text-zinc-400 mt-0.5 text-wrap">{event.location}</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-400 mt-0.5 text-wrap">{event.location}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="ml-2 shrink-0 rounded-md p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
+            className="ml-2 shrink-0 rounded-md p-1.5 text-zinc-400 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
             ✕
           </button>
@@ -154,7 +155,7 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
           {/* Travel settings + Get routes (combined) */}
           <div className="space-y-4">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+              <label className="text-xs font-medium text-zinc-500 dark:text-zinc-300 uppercase tracking-wide">
                 Departure location
               </label>
               <AddressAutocomplete
@@ -162,30 +163,30 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
                 value={departure}
                 onChange={setDeparture}
                 placeholder={userDefaults.default_departure ?? 'Enter address'}
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                className="w-full rounded-xl border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--gcal-blue) dark:placeholder-zinc-500"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+              <label className="text-xs font-medium text-zinc-500 dark:text-zinc-300 uppercase tracking-wide">
                 Travel mode
               </label>
-              <select
+              <SelectDropdown
                 value={travelMode}
-                onChange={(e) => {
-                  setTravelMode(e.target.value)
+                onChange={(val) => {
+                  setTravelMode(val)
                   setRoutes(null)
                 }}
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-400"
-              >
-                <option value="driving">Driving</option>
-                <option value="transit">Transit</option>
-                <option value="walking">Walking</option>
-              </select>
+                options={[
+                  { value: 'driving', label: 'Driving' },
+                  { value: 'transit', label: 'Transit' },
+                  { value: 'walking', label: 'Walking' },
+                ]}
+              />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+              <label className="text-xs font-medium text-zinc-500 dark:text-zinc-300 uppercase tracking-wide">
                 Buffer time (arrive early by)
               </label>
               <div className="flex items-center gap-2">
@@ -195,21 +196,21 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
                   onChange={(e) => setBufferMinutes(Number(e.target.value))}
                   min={0}
                   max={120}
-                  className="w-20 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                  className="w-20 rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--gcal-blue)"
                 />
-                <span className="text-sm text-zinc-500">min</span>
+                <span className="text-sm text-zinc-500 dark:text-zinc-300">min</span>
               </div>
             </div>
 
             {routeError && (
-              <p className="text-sm text-red-600">{routeError}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{routeError}</p>
             )}
 
             <button
               type="button"
               disabled={isPending || !departure || !event.location}
               onClick={handleGetRoutes}
-              className="w-full rounded-lg bg-zinc-900 py-2 text-sm font-medium text-white hover:bg-zinc-700 transition-colors disabled:opacity-50"
+              className="w-full rounded-lg bg-(--gcal-blue) py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {isPending ? 'Saving & fetching routes…' : 'Get routes'}
             </button>
@@ -230,22 +231,22 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
             )}
           </div>
 
-          <hr className="border-zinc-100" />
+          <hr className="border-slate-100 dark:border-zinc-700" />
 
           {/* Reminder section */}
           <div className="space-y-3">
-            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-300 uppercase tracking-wide">
               Reminder
             </p>
 
-            <div className="flex rounded-lg border border-zinc-200 overflow-hidden text-sm">
+            <div className="flex rounded-lg border border-slate-200 dark:border-zinc-600 overflow-hidden text-sm">
               <button
                 type="button"
                 onClick={() => setReminderMode('fixed')}
                 className={`flex-1 py-2 transition-colors ${
                   reminderMode === 'fixed'
-                    ? 'bg-zinc-900 text-white font-medium'
-                    : 'bg-white text-zinc-500 hover:bg-zinc-50'
+                    ? 'bg-(--gcal-blue) text-white font-medium'
+                    : 'bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700'
                 }`}
               >
                 Fixed
@@ -255,8 +256,8 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
                 onClick={() => setReminderMode('ai')}
                 className={`flex-1 py-2 transition-colors ${
                   reminderMode === 'ai'
-                    ? 'bg-zinc-900 text-white font-medium'
-                    : 'bg-white text-zinc-500 hover:bg-zinc-50'
+                    ? 'bg-(--gcal-blue) text-white font-medium'
+                    : 'bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700'
                 }`}
               >
                 AI estimate
@@ -271,14 +272,14 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
                   onChange={(e) => setReminderMinutes(Number(e.target.value))}
                   min={0}
                   max={240}
-                  className="w-20 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                  className="w-20 rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--gcal-blue)"
                 />
-                <span className="text-sm text-zinc-500">min before leaving</span>
+                <span className="text-sm text-zinc-500 dark:text-zinc-300">min before leaving</span>
               </div>
             )}
 
             {reminderMode === 'ai' && (
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-zinc-400 dark:text-zinc-400">
                 Gemini will estimate based on the event type and your prep times.
               </p>
             )}
@@ -287,13 +288,13 @@ export default function EventSidePanel({ event, override, userDefaults, onClose 
               type="button"
               disabled={isUpdatingReminder}
               onClick={handleReminderUpdate}
-              className="w-full rounded-lg border border-zinc-300 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors disabled:opacity-50"
+              className="w-full rounded-xl bg-(--gcal-blue) py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {isUpdatingReminder ? 'Updating…' : 'Update reminder on calendar'}
             </button>
 
             {reminderStatus && (
-              <p className="text-sm text-zinc-600">{reminderStatus}</p>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">{reminderStatus}</p>
             )}
           </div>
         </div>
