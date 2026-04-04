@@ -113,7 +113,19 @@ These are two independent concerns — it's easy to conflate them.
 
 Without the poll: travel blocks still get created instantly in Google Calendar, but the dashboard card would show stale data until the user manually refreshed the page. The poll exists purely for dashboard UI freshness, not for the core functionality.
 
-If you wanted to remove the poll, you'd need a WebSocket or Server-Sent Events channel so the server can notify the browser immediately after `revalidatePath` — more complexity than it's worth for a calendar app.
+**Planned improvement — Supabase Realtime:** On Vercel serverless, the webhook handler and an open browser tab run in separate isolated processes, so a persistent WebSocket connection between them isn't possible without external pub/sub infrastructure (e.g. Redis). Supabase Realtime solves this without extra infrastructure: the browser opens a WebSocket connection to Supabase and subscribes to `calendar_events` table changes. When the webhook upserts rows, Supabase detects the change via Postgres `LISTEN/NOTIFY` and pushes the event over that WebSocket to the subscribed browser tab, which calls `router.refresh()` once — no polling needed. Requires enabling Realtime on the `calendar_events` table in Supabase and adding `NEXT_PUBLIC_SUPABASE_ANON_KEY` to env vars. Free tier includes 500 concurrent connections and 2 million messages/month.
+
+## Why `calendar_events` and `event_overrides` are separate tables
+
+Both tables share the same primary key (`user_id`, `gcal_event_id`) and are always queried together on the dashboard, so combining them is tempting. The tradeoff:
+
+**Benefit of combining:** one DB query instead of two on every dashboard load, simpler schema, and a Supabase Realtime subscription only needs to watch one table.
+
+**Risk of combining:** the two tables have very different write patterns. `calendar_events` is overwritten aggressively on every webhook fire — the webhook upserts `summary`, `location`, `description`, `start_at`, `end_at` for every event it sees. `event_overrides` is written carefully and infrequently — only when a travel block is created or the user explicitly changes a setting (departure address, travel mode, reminder minutes, etc.). If combined, every webhook upsert would need to explicitly name only the GCal columns, otherwise it would silently overwrite the user's custom settings. Currently that safety is structural — the two tables are physically separate so a write to one can never touch the other. Combined, it becomes a discipline enforced only in code.
+
+The tables also have different conceptual roles: `calendar_events` is a read-only mirror of what Google Calendar currently says; `event_overrides` is user-generated configuration. Mixing them makes it less obvious which columns come from where.
+
+Combining is reasonable if you're careful, but the write collision risk is the main reason they're kept separate.
 
 ## AI Reminder Categories
 

@@ -122,8 +122,11 @@ The webhook fires frequently (phone syncs, other clients). To avoid unnecessary 
 ## Dashboard
 
 - Reads from `calendar_events` Supabase cache — **no Calendar API call on page load**
-- `DashboardRefresher` client component calls `router.refresh()` every 30 seconds so the page picks up webhook-triggered cache invalidations automatically
+- `DashboardRefresher` client component currently polls `router.refresh()` every 30 seconds — **planned to replace with Supabase Realtime** (see TODO)
 - If no webhook is registered: shows banner prompting user to go to Settings
+
+### Why polling exists (and why Supabase Realtime replaces it)
+The webhook calls `revalidatePath('/dashboard')` server-side, but that only marks the Next.js cache as stale — it has no way to push to an open browser tab. The browser must ask. On Vercel serverless, a persistent WebSocket connection between the webhook handler and an open browser tab isn't possible without external pub/sub infrastructure. **Supabase Realtime** solves this cleanly: the client opens a WebSocket connection to Supabase and subscribes directly to `calendar_events` changes; when the webhook upserts rows, Supabase pushes the event over that WebSocket to the browser, which calls `router.refresh()` once. No polling, no extra infrastructure. Free tier includes 500 concurrent connections and 2 million messages/month.
 
 ---
 
@@ -312,3 +315,5 @@ CRON_SECRET
 - [ ] Gemini sometimes returns wrong values — prompt improvement needed
 - [ ] Webhooks don't fire on `localhost` (Google can't reach it). Use ngrok/Cloudflare tunnel or deploy to Vercel to test the automatic flow. Manual Refresh on each event works as a workaround in dev.
 - [ ] `calendar_events` table must be populated via "Sync now" in Settings after first webhook registration (the initial `sync` notification fires before the table is ready)
+- [ ] **Replace `DashboardRefresher` polling with Supabase Realtime** — subscribe to `calendar_events` changes client-side; call `router.refresh()` on any INSERT/UPDATE/DELETE for the user's rows. Requires: `NEXT_PUBLIC_SUPABASE_ANON_KEY` env var + Realtime enabled on `calendar_events` table in Supabase dashboard. New client-side Supabase client needed in `lib/supabase-client.ts` (uses anon key, safe to expose).
+- [ ] **Consider merging `calendar_events` + `event_overrides`** — same PK, always queried together. Main risk: the webhook upserts `calendar_events` aggressively on every fire; a combined table requires every upsert to explicitly list only GCal columns to avoid clobbering user override columns (departure, travel mode, etc.). Currently safe by structure.
