@@ -8,9 +8,16 @@ import TutorialButton from '@/app/_components/TutorialButton'
 import ThemeToggle from '@/app/_components/ThemeToggle'
 import TutorialModal from '@/app/_components/TutorialModal'
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
   const session = await auth()
   if (session) redirect('/dashboard')
+
+  const { error } = await searchParams
+  const calendarDenied = error === 'calendar_scope_denied'
 
   return (
     <main className="relative flex flex-1 flex-col items-center justify-center gap-8 px-4 py-16 bg-slate-50 dark:bg-neutral-900">
@@ -28,6 +35,12 @@ export default async function LoginPage() {
 
       <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 w-full max-w-sm shadow-sm text-center space-y-4">
         <FeatureList />
+
+        {calendarDenied && (
+          <p className="text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2">
+            Calendar access is required. Please sign in again and check the Google Calendar permission.
+          </p>
+        )}
 
         <form
           action={async () => {

@@ -25,8 +25,12 @@ export async function getValidAccessToken(userId: string): Promise<string> {
 
     if (res.ok) return user.access_token
 
+    if (res.status === 403) {
+      throw new Error(
+        'Insufficient Google Calendar permissions. Please sign out and sign back in to re-authorize the app.'
+      )
+    }
     if (res.status !== 401) {
-      // Non-expiry error (e.g. scope 403) — don't attempt refresh, surface it
       throw new Error(`Calendar API error: ${res.status}`)
     }
     // 401 falls through to refresh below

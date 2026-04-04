@@ -28,6 +28,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ account, profile }) {
       if (!profile?.sub || !profile?.email) return false
 
+      const granted = account?.scope ?? ''
+      const needsCalendar =
+        granted.includes('calendar.readonly') || granted.includes('calendar.events')
+      if (!needsCalendar) {
+        return '/login?error=calendar_scope_denied'
+      }
+
       const { error } = await supabase.from('users').upsert(
         {
           google_id: profile.sub,
