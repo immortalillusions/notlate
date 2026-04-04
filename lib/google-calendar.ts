@@ -37,11 +37,11 @@ export async function listUpcomingEventsWithLocation(
   accessToken: string
 ): Promise<GCalEvent[]> {
   const now = new Date().toISOString()
-  const thirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  const sevenDays = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
   const res = await calendarFetch(
     accessToken,
-    `/calendars/primary/events?timeMin=${encodeURIComponent(now)}&timeMax=${encodeURIComponent(thirtyDays)}&singleEvents=true&orderBy=startTime&maxResults=50`
+    `/calendars/primary/events?timeMin=${encodeURIComponent(now)}&timeMax=${encodeURIComponent(sevenDays)}&singleEvents=true&orderBy=startTime&maxResults=50`
   )
 
   if (!res.ok) throw new Error(`Calendar list error: ${res.status}`)
