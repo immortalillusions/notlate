@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     // the Directions API. Only events where those fields changed get processed.
     const { data: previousCache } = await supabase
       .from('calendar_events')
-      .select('gcal_event_id, location, start_at')
+      .select('gcal_event_id, location, start_at, end_at')
       .eq('user_id', user_id)
 
     const prevMap = new Map(
@@ -98,9 +98,15 @@ export async function POST(request: NextRequest) {
       (overrides ?? []).map((o) => [o.gcal_event_id, o])
     )
 
+    const nowMs = Date.now()
     for (const id of staleIds) {
       const override = overrideMap.get(id)
-      if (override?.travel_block_gcal_id) {
+      const cached = prevMap.get(id)
+      const eventPassed = cached?.end_at ? new Date(cached.end_at).getTime() < nowMs : false
+
+      // Only delete the travel block from GCal if the event was deleted or its
+      // location was removed — not if it simply ended (let it stay on the calendar).
+      if (!eventPassed && override?.travel_block_gcal_id) {
         await deleteCalendarEvent(accessToken, override.travel_block_gcal_id).catch(() => {})
       }
       await supabase

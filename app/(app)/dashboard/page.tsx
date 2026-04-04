@@ -76,6 +76,7 @@ export default async function DashboardPage() {
       {channel && events.length === 0 && (
         <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-12 text-center text-zinc-400 text-sm">
           <p>No upcoming events with a location found. Add an event with a location in Google Calendar — it will appear here automatically.</p>
+          <p>Only events in the next 7 days are shown to prevent excessive API calls</p>
           <SyncNowButton />
         </div>
       )}

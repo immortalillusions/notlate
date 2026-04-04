@@ -13,7 +13,7 @@ Automatically adds travel time blocks to Google Calendar events that have a loca
 ## Features
 
 - Auto-creates travel blocks when a Google Calendar event with a location is added or updated
-- Webhook-based real-time sync (only triggers Directions API when location or start time changes)
+- Webhook-based real-time sync — only processes events in the next 7 days, only triggers Directions API when location or start time changes
 - Driving, transit, and walking support with detailed route steps
 - Weather at destination included in travel block description
 - AI reminder estimation via Gemini (classifies event type, returns your prep time for that category)
@@ -59,7 +59,14 @@ Run migrations in order via the Supabase SQL editor:
 
 ### 4. Vercel
 
-Deploy and set all env vars. Add a Cron Job in `vercel.json` to call `/api/cron/renew-webhooks` every 6 days (webhooks expire after 7 days).
+Deploy and set all env vars. Cron jobs are configured in `vercel.json`:
+
+| Route | Schedule | Purpose |
+|---|---|---|
+| `/api/cron/renew-webhooks` | Every 6 days | Renews Google Calendar watch channels before they expire (TTL ~7 days) |
+| `/api/cron/purge-expired-events` | Every 3 days | Deletes past events from DB (`calendar_events` + `event_overrides`); travel blocks are kept on GCal |
+
+Both routes require `Authorization: Bearer <CRON_SECRET>`.
 
 ## Development
 

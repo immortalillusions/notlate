@@ -101,6 +101,16 @@ The webhook fires frequently (phone syncs, other clients). To avoid unnecessary 
 5. Create or update travel block in Google Calendar (with `timeZone` set for correct local time display)
 6. Upsert `event_overrides` — clears `directions_error` on success
 
+### Event Window
+- `listUpcomingEventsWithLocation` fetches events from now through the next **7 days** only
+- Limits Directions/Gemini API calls to imminent events
+- Events beyond 7 days are picked up automatically once they fall within the window on the next webhook fire or sync
+
+### On Event Ended (naturally passed)
+- Travel block is **kept on Google Calendar** (user may want it as a record)
+- `event_overrides` and `calendar_events` rows are purged by the `purge-expired-events` cron (runs every 3 days)
+- Dashboard hides passed events via `start_at >= now` filter — no GCal call needed
+
 ### On Event Deleted / Location Removed
 - Delete associated travel block from Google Calendar
 - Remove `event_overrides` row
@@ -129,16 +139,18 @@ app/
     settings/page.tsx             → edit defaults + WebhookSection
   onboarding/page.tsx             → first-run setup (outside (app) group to avoid redirect loop)
   api/
-    auth/[...nextauth]/route.ts   → Auth.js handler
-    webhook/calendar/route.ts     → Google Calendar push notifications (content-based change detection)
-    directions/route.ts           → server proxy for Directions API
+    auth/[...nextauth]/route.ts          → Auth.js handler
+    webhook/calendar/route.ts           → Google Calendar push notifications (content-based change detection)
+    directions/route.ts                 → server proxy for Directions API
     places/
-      autocomplete/route.ts       → server proxy for Places Autocomplete (auth-protected)
-      details/route.ts            → server proxy for Place Details (closes billing session)
+      autocomplete/route.ts             → server proxy for Places Autocomplete (auth-protected)
+      details/route.ts                  → server proxy for Place Details (closes billing session)
     events/[eventId]/
-      refresh/route.ts            → manual refresh (calls processEvent)
-      reminder/route.ts           → update reminder on GCal travel block
-    cron/renew-webhooks/route.ts  → called by Vercel Cron (requires Authorization: Bearer <CRON_SECRET>)
+      refresh/route.ts                  → manual refresh (calls processEvent)
+      reminder/route.ts                 → update reminder on GCal travel block
+    cron/
+      renew-webhooks/route.ts           → Vercel Cron every 6 days — renews expiring watch channels
+      purge-expired-events/route.ts     → Vercel Cron every 3 days — deletes past events from DB (travel blocks kept on GCal)
   _components/
     AddressAutocomplete.tsx       → Places autocomplete input (session tokens, createPortal dropdown)
     DashboardRefresher.tsx        → client component, polls router.refresh() every 5s
