@@ -23,6 +23,8 @@ A web app that automatically adds travel time blocks to Google Calendar events t
 ### Google OAuth 2.0
 - Scopes: `calendar.readonly`, `calendar.events`
 - `access_type: 'offline'`, `prompt: 'consent'` to force refresh token on first login
+- Both scopes must be granted — `signIn` callback in `lib/auth.ts` checks `account.scope` for both and redirects to `/login?error=calendar_scope_denied` if either is missing
+- Both scopes must also be listed on the OAuth consent screen in Google Cloud Console — omitting them there causes Google to silently strip them from the token even if requested at runtime
 
 ### Google Calendar API
 - Read upcoming events (filter for `event.location != null`)

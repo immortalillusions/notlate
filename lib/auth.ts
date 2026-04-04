@@ -30,7 +30,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const granted = account?.scope ?? ''
       const needsCalendar =
-        granted.includes('calendar.readonly') || granted.includes('calendar.events')
+        granted.includes('calendar.readonly') && granted.includes('calendar.events')
       if (!needsCalendar) {
         return '/login?error=calendar_scope_denied'
       }

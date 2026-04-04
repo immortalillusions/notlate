@@ -52,7 +52,7 @@ export default function WebhookSection({ expiration }: Props) {
       <div className="text-sm">
         {effectivelyActive ? (
           <span className="text-green-700">
-            Active &mdash; {Math.floor(daysRemaining!)} day{Math.floor(daysRemaining!) !== 1 ? 's' : ''} remaining
+            Active
           </span>
         ) : !wasJustDisabled ? (
           <span className="text-red-600">Not registered or expired</span>
