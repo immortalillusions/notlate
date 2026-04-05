@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/purge-expired-events",
       "schedule": "0 3 */3 * *"
+    },
+    {
+      "path": "/api/cron/refresh-upcoming-events",
+      "schedule": "0 9 * * *"
     }
   ]
 }

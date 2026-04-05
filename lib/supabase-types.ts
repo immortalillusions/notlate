@@ -11,6 +11,7 @@ export interface User {
   fixed_reminder_minutes: number
   onboarding_answers: OnboardingAnswers | null
   onboarding_complete: boolean
+  daily_refresh_enabled: boolean
   created_at: string
 }
 

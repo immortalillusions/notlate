@@ -14,6 +14,7 @@ Automatically adds travel time blocks to Google Calendar events that have a loca
 
 - Auto-creates travel blocks when a Google Calendar event with a location is added or updated
 - Webhook-based real-time sync — only processes events in the next 7 days, only triggers Directions API when location or start time changes
+- Daily 4 AM EST cron refreshes travel blocks for all events starting within the next 24 hours (opt-in per user via Settings)
 - Disable webhook button in Settings — pauses all automatic calendar writes without deleting any data; re-registering resumes normal operation
 - Driving, transit, and walking support with detailed route steps
 - Weather at destination included in travel block description
@@ -41,7 +42,7 @@ Automatically adds travel time blocks to Google Calendar events that have a loca
 - Also called during auto-creation (background) and manual Refresh
 - `alternatives=true` — returns all route options for the selected mode
 - If `ZERO_RESULTS` or `NOT_FOUND`: throws `DirectionsNoRouteError`, no travel block is created, error stored in DB and shown on dashboard card
-- **Set a daily quota cap (~50 req/day) + $1/month budget alert** in Google Cloud Console to avoid surprise bills
+- **Set a daily quota cap (~300 req/day) + $1/month budget alert** in Google Cloud Console to avoid surprise bills
 
 ### Google Places API *(Autocomplete + Details)*
 - Used for departure address autocomplete in EventSidePanel, Settings, and Onboarding
@@ -122,8 +123,9 @@ Deploy and set all env vars. Cron jobs are configured in `vercel.json`:
 |---|---|---|
 | `/api/cron/renew-webhooks` | Every 6 days | Renews Google Calendar watch channels before they expire (TTL ~7 days) |
 | `/api/cron/purge-expired-events` | Every 3 days | Deletes past events from DB (`calendar_events` + `event_overrides`); travel blocks are kept on GCal |
+| `/api/cron/refresh-upcoming-events` | Daily at 4 AM EST (9 AM UTC) | Refreshes travel blocks for events starting within 24 hours — only for users with an active webhook and **Daily route refresh** enabled in Settings |
 
-Both routes require `Authorization: Bearer <CRON_SECRET>`.
+All routes require `Authorization: Bearer <CRON_SECRET>`.
 
 ## Development
 
@@ -294,6 +296,7 @@ app/
     cron/
       renew-webhooks/route.ts           → Vercel Cron every 6 days — renews expiring watch channels
       purge-expired-events/route.ts     → Vercel Cron every 3 days — deletes past events from DB
+      refresh-upcoming-events/route.ts  → Vercel Cron daily 4 AM EST — refreshes travel blocks for events in next 24h
   _components/
     AddressAutocomplete.tsx       → Places autocomplete input (session tokens, createPortal dropdown, reverts on exit without selection)
     DashboardRefresher.tsx        → subscribes to calendar_events via Supabase Realtime WebSocket; calls router.refresh() on change
@@ -374,6 +377,11 @@ create table if not exists calendar_events (
 );
 
 alter table watch_channels add column if not exists last_synced_at timestamptz;
+```
+
+### `supabase/migrations/004_daily_refresh.sql`
+```sql
+alter table users add column if not exists daily_refresh_enabled boolean not null default false;
 ```
 
 ## Why `calendar_events` and `event_overrides` are separate tables

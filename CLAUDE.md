@@ -37,7 +37,7 @@ A web app that automatically adds travel time blocks to Google Calendar events t
 - Also called during auto-creation (background) and manual Refresh
 - `alternatives=true` — returns all route options for the selected mode
 - If `ZERO_RESULTS` or `NOT_FOUND`: throws `DirectionsNoRouteError`, no travel block is created, error stored in DB and shown on dashboard card
-- Set a daily quota cap (e.g. 50 req/day) + $1/month budget alert in Google Cloud Console
+- Set a daily quota cap (e.g. 300 req/day) + $1/month budget alert in Google Cloud Console
 
 ### Google Places API *(Autocomplete + Details)*
 - Used for departure address autocomplete in EventSidePanel, Settings, and Onboarding
@@ -126,6 +126,16 @@ The webhook fires frequently (phone syncs, other clients). To avoid unnecessary 
 
 ### On Event Moved
 - Update travel block start/end times
+
+### Daily 4 AM Cron Refresh
+- Route: `app/api/cron/refresh-upcoming-events/route.ts` — Vercel Cron at `0 9 * * *` (9 AM UTC = 4 AM EST)
+- Runs `processEvent` for every event starting within the next 24 hours, equivalent to the user clicking Refresh on each card
+- **Only processes users who have both:** an active `watch_channels` row AND `daily_refresh_enabled = true` (opt-in, default `false`)
+- `daily_refresh_enabled` is toggled via the **Daily route refresh** checkbox in Settings → Automation section (saved via `save-settings.ts`, stored in `users` table)
+- For each event: fetches live GCal event, handles deleted events and removed locations, checks for manually deleted travel blocks, then calls `processEvent`
+- Errors per event are logged in the response JSON and do not abort other events; token errors abort all events for that user
+- Migration: `supabase/migrations/004_daily_refresh.sql`
+
 ---
 
 ## Dashboard
@@ -163,6 +173,7 @@ app/
     cron/
       renew-webhooks/route.ts           → Vercel Cron every 6 days — renews expiring watch channels
       purge-expired-events/route.ts     → Vercel Cron every 3 days — deletes past events from DB (travel blocks kept on GCal)
+      refresh-upcoming-events/route.ts  → Vercel Cron daily 4 AM EST — refreshes travel blocks for events in next 24h (opted-in users only)
   _components/
     AddressAutocomplete.tsx       → Places autocomplete input (session tokens, createPortal dropdown)
     DashboardRefresher.tsx        → client component, subscribes to calendar_events via Supabase Realtime WebSocket; calls router.refresh() on any change
@@ -241,6 +252,11 @@ create table if not exists calendar_events (
 
 -- Debounce column (kept for potential future use; debounce removed in favour of content-based detection)
 alter table watch_channels add column if not exists last_synced_at timestamptz;
+```
+
+### `supabase/migrations/004_daily_refresh.sql`
+```sql
+alter table users add column if not exists daily_refresh_enabled boolean not null default false;
 ```
 
 ---

@@ -11,6 +11,7 @@ const schema = z.object({
   default_buffer_minutes: z.coerce.number().int().min(0).max(120),
   reminder_mode: z.enum(['fixed', 'ai']),
   fixed_reminder_minutes: z.coerce.number().int().min(1).max(120),
+  daily_refresh_enabled: z.boolean(),
   onboarding_answers: z
     .object({
       professional_low: z.coerce.number().int().min(0),
@@ -23,7 +24,7 @@ const schema = z.object({
     .optional(),
 })
 
-export type SettingsState = { error?: string; success?: boolean; reminder_mode?: 'fixed' | 'ai' } | null
+export type SettingsState = { error?: string; success?: boolean; reminder_mode?: 'fixed' | 'ai'; daily_refresh_enabled?: boolean } | null
 
 export async function saveSettings(
   _prev: SettingsState,
@@ -40,6 +41,7 @@ export async function saveSettings(
     default_buffer_minutes: formData.get('default_buffer_minutes'),
     reminder_mode: reminderMode,
     fixed_reminder_minutes: formData.get('fixed_reminder_minutes'),
+    daily_refresh_enabled: formData.get('daily_refresh_enabled') === 'true',
     onboarding_answers:
       reminderMode === 'ai'
         ? {
@@ -64,5 +66,5 @@ export async function saveSettings(
 
   revalidatePath('/dashboard')
   revalidatePath('/settings')
-  return { success: true, reminder_mode: parsed.data.reminder_mode }
+  return { success: true, reminder_mode: parsed.data.reminder_mode, daily_refresh_enabled: parsed.data.daily_refresh_enabled }
 }

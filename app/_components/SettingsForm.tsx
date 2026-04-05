@@ -14,6 +14,7 @@ interface Props {
     | 'reminder_mode'
     | 'fixed_reminder_minutes'
     | 'onboarding_answers'
+    | 'daily_refresh_enabled'
   >
 }
 
@@ -61,14 +62,22 @@ export default function SettingsForm({ user }: Props) {
   const [state, action, pending] = useActionState(saveSettings, null)
   const [departure, setDeparture] = useState(user.default_departure ?? '')
   const [reminderMode, setReminderMode] = useState<'fixed' | 'ai'>(user.reminder_mode)
-  // savedMode tracks the last confirmed-saved value; used to key+defaultCheck the radio group
+  // savedMode/savedDailyRefresh track the last confirmed-saved value; used to key+defaultCheck their inputs
   const [savedMode, setSavedMode] = useState<'fixed' | 'ai'>(user.reminder_mode)
+  const [savedDailyRefresh, setSavedDailyRefresh] = useState(user.daily_refresh_enabled)
   useEffect(() => {
-    if (state?.success && state.reminder_mode) {
-      setSavedMode(state.reminder_mode)
-      setReminderMode(state.reminder_mode)
+    if (state?.success) {
+      if (state.reminder_mode) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSavedMode(state.reminder_mode)
+        setReminderMode(state.reminder_mode)
+      }
+      if (state.daily_refresh_enabled !== undefined) {
+        setSavedDailyRefresh(state.daily_refresh_enabled)
+      }
     }
   }, [state])
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setDeparture(user.default_departure ?? '') }, [user.default_departure])
 
   return (
@@ -219,6 +228,25 @@ export default function SettingsForm({ user }: Props) {
           </div>
         </div>
       )}
+
+      <div key={String(savedDailyRefresh)} className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 space-y-3">
+        <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Automation</h2>
+        <label className="flex items-start gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            name="daily_refresh_enabled"
+            value="true"
+            defaultChecked={savedDailyRefresh}
+            className="mt-0.5 accent-(--gcal-blue)"
+          />
+          <div>
+            <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Daily route refresh</div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-300">
+              Automatically refresh travel blocks for events starting within 24 hours, every day at 4 AM EST
+            </div>
+          </div>
+        </label>
+      </div>
 
       <button
         type="submit"
