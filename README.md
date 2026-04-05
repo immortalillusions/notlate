@@ -199,6 +199,20 @@ Handles both webhook-triggered auto-creation and manual Refresh:
 5. Create or update travel block in Google Calendar (with `timeZone` set for correct local time display)
 6. Upsert `event_overrides` — clears `directions_error` on success, explicitly round-trips `departure_location`/`travel_mode`/`buffer_minutes` to prevent Supabase from silently nulling them
 
+### Sync timing: new events vs. initialization
+
+When a user **adds or updates** a Google Calendar event, the travel block appears on their calendar after three sequential delays:
+
+1. **Google webhook delivery (~5–10s):** Google detects the calendar change and POSTs a notification to `/api/webhook/calendar`. This delay is outside our control.
+2. **Webhook processing (~5–10s):** The handler calls `listUpcomingEventsWithLocation` (GCal API read), then `processEvent` — which runs Directions API → Open-Meteo → optionally Gemini → GCal API write. All sequential.
+3. **GCal client sync (~10–30s):** The travel block now exists on Google's servers, but the GCal app on the user's device syncs on its own schedule. There is no API to force an immediate client sync.
+
+Total observed delay is typically ~25s, dominated by steps 1 and 3.
+
+**Why the dashboard shows "Block set" before the GCal app does:** After `processEvent` upserts `event_overrides`, Google fires a second webhook notification (because a new travel block event was just written to the calendar). That second webhook upserts `calendar_events` → Supabase Realtime fires → `router.refresh()` → the dashboard re-renders and reads the updated `event_overrides`, showing the badge. This happens the moment the travel block lands on Google's servers — the GCal app still hasn't synced yet.
+
+**Why initialization (onboarding / first sync) feels instant by comparison:** When `registerWebhook()` is called during onboarding, Google fires a `sync` notification immediately — before the user has even navigated away. There is no step 1 delay. The events already exist on the calendar, so the handler runs `processEvent` right away and travel blocks appear as soon as the GCal client next syncs. The user perceives this as near-instant because there was no waiting for them to add an event and then waiting for Google to notice.
+
 ### Event Window
 
 `listUpcomingEventsWithLocation` fetches events from now through the next **7 days** only. Events beyond 7 days are picked up automatically once they fall within the window on the next webhook fire or sync.
