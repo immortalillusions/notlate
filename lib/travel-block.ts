@@ -43,8 +43,7 @@ export function buildTravelBlockDescription(
 ): string {
   const travelMinutes = Math.round(route.durationSeconds / 60)
   const leaveBy = formatTime(leaveByTime, timeZone)
-  const arriveDate = new Date(leaveByTime.getTime() + route.durationSeconds * 1000)
-  const arriveAt = formatTime(arriveDate, timeZone)
+  const arriveAt = formatTime(route.arrivalTime, timeZone)
 
   const lines: string[] = [
     `Leave by: ${leaveBy} | Arrive at: ${arriveAt}`,
@@ -56,16 +55,21 @@ export function buildTravelBlockDescription(
   }
 
   const stepEmoji = { transit: '🚌', walk: '🚶', drive: '🚗' }
-  const stepLines = route.steps.map((s) => `  ${stepEmoji[s.type]} ${s.description}`)
+  const stepLines = route.steps.map((s) => {
+    const timePrefix = s.departureTime ? ` at ${formatTime(s.departureTime, timeZone)}:` : ''
+    return `  ${stepEmoji[s.type]}${timePrefix} ${s.description}`
+  })
   lines.push('', 'Route:', ...stepLines)
 
+  lines.push('')
   if (weather) {
     const precipEmoji = weather.precipMm > 0 ? '🌧️' : '☀️'
-    lines.push('')
     lines.push(`Weather at destination (${formatTime(route.arrivalTime, timeZone)}):`)
     lines.push(
       `${precipEmoji} Precipitation: ${weather.precipMm}mm | 🌡️ ${weather.tempC}°C (feels like ${weather.feelsLikeC}°C)`
     )
+  } else {
+    lines.push('Weather: open-meteo API failed')
   }
 
   if (isEventMoved) {

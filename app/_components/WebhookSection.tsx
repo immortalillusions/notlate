@@ -6,9 +6,10 @@ import { disableWebhookAction } from '@/actions/disable-webhook'
 
 interface Props {
   expiration: string | null
+  email: string
 }
 
-export default function WebhookSection({ expiration }: Props) {
+export default function WebhookSection({ expiration, email }: Props) {
   const [registerState, registerAction, registerPending] = useActionState(
     registerWebhookAction,
     null
@@ -47,6 +48,7 @@ export default function WebhookSection({ expiration }: Props) {
         <p className="text-xs text-zinc-500 dark:text-zinc-300 mt-0.5">
           Keeps your travel blocks updated automatically when events change.
         </p>
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{email}</p>
       </div>
 
       <div className="text-sm">

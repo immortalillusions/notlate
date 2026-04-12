@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   const { data: user } = await supabase
     .from('users')
     .select(
-      'default_departure, default_travel_mode, default_buffer_minutes, reminder_mode, fixed_reminder_minutes, onboarding_answers, daily_refresh_enabled'
+      'default_departure, default_travel_mode, default_buffer_minutes, reminder_mode, fixed_reminder_minutes, onboarding_answers, daily_refresh_enabled, email'
     )
     .eq('id', session.user.id)
     .single<
@@ -27,6 +27,7 @@ export default async function SettingsPage() {
         | 'fixed_reminder_minutes'
         | 'onboarding_answers'
         | 'daily_refresh_enabled'
+        | 'email'
       >
     >()
 
@@ -47,7 +48,7 @@ export default async function SettingsPage() {
         </p>
       </div>
       <SettingsForm user={user} />
-      <WebhookSection expiration={channel?.expiration ?? null} />
+      <WebhookSection expiration={channel?.expiration ?? null} email={user.email} />
     </div>
   )
 }

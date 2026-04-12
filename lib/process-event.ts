@@ -9,7 +9,6 @@ import { estimatePrepMinutes } from '@/lib/gemini'
 import {
   buildTravelBlockTitle,
   buildTravelBlockDescription,
-  computeLeaveByTime,
 } from '@/lib/travel-block'
 import {
   createCalendarEvent,
@@ -119,7 +118,10 @@ export async function processEvent(
     }
   }
 
-  const leaveByTime = computeLeaveByTime(eventStart, route.durationSeconds, buffer)
+  // Use actual route arrival minus total duration to get true home departure time.
+  // For transit this correctly accounts for walking to the bus stop, unlike
+  // eventStart - totalDuration - buffer which equals the bus departure time.
+  const leaveByTime = new Date(route.arrivalTime.getTime() - route.durationSeconds * 1000)
   const title = buildTravelBlockTitle(leaveByTime, event.summary, mode, eventTimeZone)
   const description = buildTravelBlockDescription(route, weather, leaveByTime, isEventMoved, eventTimeZone, departure)
 
@@ -132,7 +134,7 @@ export async function processEvent(
       summary: title,
       description,
       start: leaveByTime,
-      end: eventStart,
+      end: route.arrivalTime,
       ...(isEventMoved ? {} : { reminderMinutes }),
       timeZone: eventTimeZone,
     })
@@ -143,7 +145,7 @@ export async function processEvent(
       summary: title,
       description,
       start: leaveByTime,
-      end: eventStart,
+      end: route.arrivalTime,
       reminderMinutes,
       timeZone: eventTimeZone,
     })

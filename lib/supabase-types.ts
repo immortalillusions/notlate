@@ -74,6 +74,7 @@ export interface RouteStep {
   type: 'transit' | 'walk' | 'drive'
   description: string
   durationSeconds: number
+  departureTime?: Date
   // Transit-only fields
   departureStop?: string
   arrivalStop?: string

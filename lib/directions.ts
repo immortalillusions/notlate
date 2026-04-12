@@ -73,6 +73,7 @@ interface GoogleStep {
     num_stops?: number
     departure_stop?: { name: string }
     arrival_stop?: { name: string }
+    departure_time?: { value: number }
   }
 }
 
@@ -93,16 +94,28 @@ function parseRoute(
     ? new Date(leg.departure_time.value * 1000)
     : new Date(arrivalTime.getTime() - durationSeconds * 1000)
 
+  // Compute step departure times: start from route departure (arrivalTime - totalDuration)
+  // and accumulate forward. For transit steps, prefer the exact scheduled departure_time.
+  const routeStartTime = new Date(arrivalTime.getTime() - durationSeconds * 1000)
+  let stepCursor = routeStartTime.getTime()
+
   const steps: RouteStep[] = leg.steps.map((step) => {
+    const computedDeparture = new Date(stepCursor)
+    stepCursor += step.duration.value * 1000
+
     if (step.travel_mode === 'TRANSIT' && step.transit_details) {
       const td = step.transit_details
       const line = td.line.short_name ?? td.line.name ?? 'Transit'
       const numStops = td.num_stops ?? 0
       const stopLabel = numStops === 1 ? '1 stop' : `${numStops} stops`
+      const departureTime = td.departure_time
+        ? new Date(td.departure_time.value * 1000)
+        : computedDeparture
       return {
         type: 'transit',
         description: `${line}: board ${td.departure_stop?.name ?? '?'} → arrive ${td.arrival_stop?.name ?? '?'} (${stopLabel})`,
         durationSeconds: step.duration.value,
+        departureTime,
         departureStop: td.departure_stop?.name,
         arrivalStop: td.arrival_stop?.name,
         numStops: td.num_stops,
@@ -117,6 +130,7 @@ function parseRoute(
       type: step.travel_mode === 'WALKING' ? 'walk' : 'drive',
       description,
       durationSeconds: step.duration.value,
+      departureTime: computedDeparture,
     }
   })
 

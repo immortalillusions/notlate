@@ -25,6 +25,12 @@ function formatTime(date: Date | string): string {
   })
 }
 
+function leaveByTime(route: RouteAlternative): string {
+  // Use arrivalTime - durationSeconds to get home departure (includes walking to transit)
+  const t = new Date(route.arrivalTime).getTime() - route.durationSeconds * 1000
+  return formatTime(new Date(t))
+}
+
 export default function RoutePicker({
   routes,
   gcalEventId,
@@ -86,7 +92,7 @@ export default function RoutePicker({
 
       {routes.map((route, idx) => {
         const minutes = Math.round(route.durationSeconds / 60)
-        const leaveBy = formatTime(route.departureTime)
+        const leaveBy = leaveByTime(route)
         const isExpanded = expandedIdx === idx
 
         return (
@@ -129,7 +135,14 @@ export default function RoutePicker({
                       <span className="mt-0.5 shrink-0">
                         {step.type === 'transit' ? '🚌' : step.type === 'walk' ? '🚶' : '🚗'}
                       </span>
-                      <span>{step.description}</span>
+                      <span>
+                        {step.departureTime && (
+                          <span className="text-zinc-400 dark:text-zinc-500 mr-1">
+                            {formatTime(step.departureTime)}:
+                          </span>
+                        )}
+                        {step.description}
+                      </span>
                     </div>
                   ))}
                   {route.steps.length === 0 && (

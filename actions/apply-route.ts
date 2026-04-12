@@ -14,7 +14,6 @@ import type { GCalEvent } from '@/lib/google-calendar'
 import {
   buildTravelBlockTitle,
   buildTravelBlockDescription,
-  computeLeaveByTime,
 } from '@/lib/travel-block'
 import { fetchWeather } from '@/lib/weather'
 import type { RouteAlternative } from '@/lib/supabase-types'
@@ -30,6 +29,7 @@ const routeSchema = z.object({
       type: z.enum(['transit', 'walk', 'drive']),
       description: z.string(),
       durationSeconds: z.number(),
+      departureTime: z.string().optional(),
     })
   ),
   endLocation: z.object({ lat: z.number(), lng: z.number() }),
@@ -86,10 +86,15 @@ export async function applyRoute(
     route: routeData,
   } = parsed.data
 
+  const arrivalTime = new Date(routeData.arrivalTime)
   const route: RouteAlternative = {
     ...routeData,
     departureTime: new Date(routeData.departureTime),
-    arrivalTime: new Date(routeData.arrivalTime),
+    arrivalTime,
+    steps: routeData.steps.map((s) => ({
+      ...s,
+      departureTime: s.departureTime ? new Date(s.departureTime) : undefined,
+    })),
   }
 
   // Prefer the authoritative event data fetched from Google so Apply Route
@@ -98,7 +103,7 @@ export async function applyRoute(
   const gcalEvent = await getCalendarEvent(accessToken, gcal_event_id).catch(() => null)
   const eventStartStr = gcalEvent?.start?.dateTime ?? event_start
   const eventStart = new Date(eventStartStr)
-  const leaveByTime = computeLeaveByTime(eventStart, route.durationSeconds, buffer_minutes)
+  const leaveByTime = new Date(route.arrivalTime.getTime() - route.durationSeconds * 1000)
 
   // Fetch weather
   const weather = await fetchWeather(
@@ -181,7 +186,7 @@ export async function applyRoute(
       summary: title,
       description,
       start: leaveByTime,
-      end: eventStart,
+      end: route.arrivalTime,
       // do not include reminderMinutes here
       timeZone: finalTimeZone,
     })
@@ -190,7 +195,7 @@ export async function applyRoute(
       summary: title,
       description,
       start: leaveByTime,
-      end: eventStart,
+      end: route.arrivalTime,
       // do not include reminderMinutes here
       timeZone: finalTimeZone,
     })
