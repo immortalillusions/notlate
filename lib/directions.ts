@@ -113,9 +113,10 @@ function parseRoute(
         : computedDeparture
       return {
         type: 'transit',
-        description: `${line}: board ${td.departure_stop?.name ?? '?'} → arrive ${td.arrival_stop?.name ?? '?'} (${stopLabel})`,
+        description: `board ${td.departure_stop?.name ?? '?'} → arrive ${td.arrival_stop?.name ?? '?'} (${stopLabel})`,
         durationSeconds: step.duration.value,
         departureTime,
+        transitLine: line,
         departureStop: td.departure_stop?.name,
         arrivalStop: td.arrival_stop?.name,
         numStops: td.num_stops,

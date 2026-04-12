@@ -56,7 +56,12 @@ export function buildTravelBlockDescription(
 
   const stepEmoji = { transit: '🚌', walk: '🚶', drive: '🚗' }
   const stepLines = route.steps.map((s) => {
-    const timePrefix = s.departureTime ? ` at ${formatTime(s.departureTime, timeZone)}:` : ''
+    const time = s.departureTime ? formatTime(s.departureTime, timeZone) : null
+    if (s.type === 'transit' && s.transitLine) {
+      const timeStr = time ? ` at ${time}:` : ':'
+      return `  🚌 ${s.transitLine}${timeStr} ${s.description}`
+    }
+    const timePrefix = time ? ` at ${time}:` : ''
     return `  ${stepEmoji[s.type]}${timePrefix} ${s.description}`
   })
   lines.push('', 'Route:', ...stepLines)

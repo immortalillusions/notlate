@@ -30,6 +30,7 @@ const routeSchema = z.object({
       description: z.string(),
       durationSeconds: z.number(),
       departureTime: z.string().optional(),
+      transitLine: z.string().optional(),
     })
   ),
   endLocation: z.object({ lat: z.number(), lng: z.number() }),

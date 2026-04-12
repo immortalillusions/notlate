@@ -76,6 +76,7 @@ export interface RouteStep {
   durationSeconds: number
   departureTime?: Date
   // Transit-only fields
+  transitLine?: string
   departureStop?: string
   arrivalStop?: string
   numStops?: number
