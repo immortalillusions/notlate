@@ -12,6 +12,7 @@ const schema = z.object({
   reminder_mode: z.enum(['fixed', 'ai']),
   fixed_reminder_minutes: z.coerce.number().int().min(1).max(120),
   daily_refresh_enabled: z.boolean(),
+  excluded_event_titles: z.array(z.string().trim().min(1)).default([]),
   onboarding_answers: z
     .object({
       professional_low: z.coerce.number().int().min(0),
@@ -24,7 +25,7 @@ const schema = z.object({
     .optional(),
 })
 
-export type SettingsState = { error?: string; success?: boolean; reminder_mode?: 'fixed' | 'ai'; daily_refresh_enabled?: boolean } | null
+export type SettingsState = { error?: string; success?: boolean; reminder_mode?: 'fixed' | 'ai'; daily_refresh_enabled?: boolean; excluded_event_titles?: string[] } | null
 
 export async function saveSettings(
   _prev: SettingsState,
@@ -42,6 +43,7 @@ export async function saveSettings(
     reminder_mode: reminderMode,
     fixed_reminder_minutes: formData.get('fixed_reminder_minutes'),
     daily_refresh_enabled: formData.get('daily_refresh_enabled') === 'true',
+    excluded_event_titles: [...new Set(formData.getAll('excluded_event_titles').map((title) => String(title).trim()).filter(Boolean))],
     onboarding_answers:
       reminderMode === 'ai'
         ? {
@@ -66,5 +68,10 @@ export async function saveSettings(
 
   revalidatePath('/dashboard')
   revalidatePath('/settings')
-  return { success: true, reminder_mode: parsed.data.reminder_mode, daily_refresh_enabled: parsed.data.daily_refresh_enabled }
+  return {
+    success: true,
+    reminder_mode: parsed.data.reminder_mode,
+    daily_refresh_enabled: parsed.data.daily_refresh_enabled,
+    excluded_event_titles: parsed.data.excluded_event_titles,
+  }
 }

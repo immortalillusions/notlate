@@ -15,6 +15,7 @@ interface Props {
     | 'fixed_reminder_minutes'
     | 'onboarding_answers'
     | 'daily_refresh_enabled'
+    | 'excluded_event_titles'
   >
 }
 
@@ -65,6 +66,8 @@ export default function SettingsForm({ user }: Props) {
   // savedMode/savedDailyRefresh track the last confirmed-saved value; used to key+defaultCheck their inputs
   const [savedMode, setSavedMode] = useState<'fixed' | 'ai'>(user.reminder_mode)
   const [savedDailyRefresh, setSavedDailyRefresh] = useState(user.daily_refresh_enabled)
+  const [excludedTitles, setExcludedTitles] = useState(user.excluded_event_titles)
+  const [newExcludedTitle, setNewExcludedTitle] = useState('')
   useEffect(() => {
     if (state?.success) {
       if (state.reminder_mode) {
@@ -75,6 +78,7 @@ export default function SettingsForm({ user }: Props) {
       if (state.daily_refresh_enabled !== undefined) {
         setSavedDailyRefresh(state.daily_refresh_enabled)
       }
+      if (state.excluded_event_titles) setExcludedTitles(state.excluded_event_titles)
     }
   }, [state])
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -228,6 +232,59 @@ export default function SettingsForm({ user }: Props) {
           </div>
         </div>
       )}
+
+      <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 space-y-4">
+        <div>
+          <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Excluded event titles</h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-300 mt-0.5">
+            Events with these exact titles will not get a travel block.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newExcludedTitle}
+            onChange={(event) => setNewExcludedTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                const title = newExcludedTitle.trim()
+                if (title && !excludedTitles.includes(title)) setExcludedTitles([...excludedTitles, title])
+                setNewExcludedTitle('')
+              }
+            }}
+            placeholder="Event title"
+            className={`min-w-0 flex-1 ${inputClass}`}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const title = newExcludedTitle.trim()
+              if (title && !excludedTitles.includes(title)) setExcludedTitles([...excludedTitles, title])
+              setNewExcludedTitle('')
+            }}
+            className="rounded-xl border border-slate-300 dark:border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700"
+          >
+            Add
+          </button>
+        </div>
+        <div className="space-y-2">
+          {excludedTitles.map((title) => (
+            <div key={title} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-zinc-700 px-3 py-2">
+              <span className="min-w-0 wrap-break-word text-sm text-zinc-800 dark:text-zinc-100">{title}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${title}`}
+                onClick={() => setExcludedTitles(excludedTitles.filter((currentTitle) => currentTitle !== title))}
+                className="shrink-0 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400"
+              >
+                Remove
+              </button>
+              <input type="hidden" name="excluded_event_titles" value={title} />
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div key={String(savedDailyRefresh)} className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 space-y-3">
         <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Automation</h2>

@@ -13,6 +13,7 @@ import {
 import {
   createCalendarEvent,
   updateCalendarEvent,
+  deleteCalendarEvent,
 } from '@/lib/google-calendar'
 import type { GCalEvent } from '@/lib/google-calendar'
 import type { User } from '@/lib/supabase-types'
@@ -52,6 +53,18 @@ export async function processEvent(
     .eq('user_id', user.id)
     .eq('gcal_event_id', event.id)
     .maybeSingle()
+
+  if (user.excluded_event_titles.includes(event.summary.trim())) {
+    if (override?.travel_block_gcal_id) {
+      await deleteCalendarEvent(accessToken, override.travel_block_gcal_id)
+      await supabase
+        .from('event_overrides')
+        .update({ travel_block_gcal_id: null, updated_at: new Date().toISOString() })
+        .eq('user_id', user.id)
+        .eq('gcal_event_id', event.id)
+    }
+    return
+  }
 
   const departure = override?.departure_location ?? user.default_departure
   const mode = (override?.travel_mode ?? user.default_travel_mode) as TravelMode

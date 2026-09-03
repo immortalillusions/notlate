@@ -12,6 +12,7 @@ export interface User {
   onboarding_answers: OnboardingAnswers | null
   onboarding_complete: boolean
   daily_refresh_enabled: boolean
+  excluded_event_titles: string[]
   created_at: string
 }
 

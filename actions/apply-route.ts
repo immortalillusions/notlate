@@ -87,6 +87,16 @@ export async function applyRoute(
     route: routeData,
   } = parsed.data
 
+  const { data: userSettings } = await supabase
+    .from('users')
+    .select('excluded_event_titles')
+    .eq('id', session.user.id)
+    .single<{ excluded_event_titles: string[] }>()
+
+  if (userSettings?.excluded_event_titles.includes(event_title.trim())) {
+    return { error: 'This event title is excluded from travel block generation' }
+  }
+
   const arrivalTime = new Date(routeData.arrivalTime)
   const route: RouteAlternative = {
     ...routeData,
